@@ -1,0 +1,32 @@
+[2026-01-06T17:39:00.892Z] PIPELINE STARTED
+[2026-01-06T17:39:00.892Z] STARTING: blinkit_sheets.js
+[2026-01-06T17:39:01.026Z] ❌ FAILED: blinkit_sheets.js (code 1)
+[2026-01-06T17:39:01.027Z] PIPELINE STOPPED at blinkit_sheets.js
+[2026-01-06T17:45:28.177Z] PIPELINE STARTED
+[2026-01-06T17:45:28.177Z] STARTING: blinkit_sheets.js
+[2026-01-06T17:45:28.322Z] ❌ FAILED: blinkit_sheets.js (code 1)
+[2026-01-06T17:45:28.323Z] PIPELINE STOPPED at blinkit_sheets.js
+[2026-01-06T17:53:19.531Z] PIPELINE STARTED
+[2026-01-06T17:53:19.532Z] STARTING: blinkit_sheets.js
+[2026-01-06T17:53:19.665Z] ❌ FAILED: blinkit_sheets.js (code 1)
+[2026-01-06T17:53:19.665Z] PIPELINE STOPPED at blinkit_sheets.js
+[2026-01-06T17:54:22.392Z] PIPELINE STARTED
+[2026-01-06T17:54:22.393Z] STARTING: blinkit_sheets.js
+[2026-01-06T17:54:22.526Z] ❌ FAILED: blinkit_sheets.js (code 1)
+[2026-01-06T17:54:22.526Z] PIPELINE STOPPED at blinkit_sheets.js
+[2026-01-06T17:55:04.038Z] PIPELINE STARTED
+[2026-01-06T17:55:04.039Z] STARTING: blinkit_sheets.js
+[2026-01-06T17:55:36.923Z] ✅ SUCCESS: blinkit_sheets.js
+[2026-01-06T17:55:36.926Z] STARTING: instamart_sheets.js
+[2026-01-06T17:56:11.779Z] ✅ SUCCESS: instamart_sheets.js
+[2026-01-06T17:56:11.780Z] STARTING: zepto_sheets.js
+[2026-01-06T18:14:22.857Z] ✅ SUCCESS: zepto_sheets.js
+[2026-01-06T18:14:22.858Z] STARTING: petcrux_blinkit_sheets.js
+[2026-01-06T18:14:47.711Z] ✅ SUCCESS: petcrux_blinkit_sheets.js
+[2026-01-06T18:14:47.712Z] STARTING: petcrux_instamart_sheets.js
+[2026-01-06T18:15:17.226Z] ✅ SUCCESS: petcrux_instamart_sheets.js
+[2026-01-06T18:15:17.227Z] STARTING: petcrux_zepto_sheets.js
+[2026-01-06T18:16:34.814Z] ✅ SUCCESS: petcrux_zepto_sheets.js
+[2026-01-06T18:16:34.815Z] STARTING: petcrux_amazon_sheets.js
+[2026-01-06T18:21:22.422Z] ✅ SUCCESS: petcrux_amazon_sheets.js
+[2026-01-06T18:21:22.423Z] FULL PIPELINE SUCCESS
