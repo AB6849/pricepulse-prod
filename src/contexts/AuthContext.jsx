@@ -113,18 +113,18 @@ export function AuthProvider({ children }) {
   }
 
   async function signInWithGoogle() {
-    // Use VITE_SITE_URL if defined (for production), otherwise fallback to origin
-    const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
-    
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${siteUrl}/auth/callback`,
-      },
-    });
-    if (error) throw error;
-    return data;
-  }
+  const redirectTo = `${window.location.origin}/auth/callback`;
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo },
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+
 
   async function signOut() {
     const { error } = await supabase.auth.signOut();

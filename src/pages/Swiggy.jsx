@@ -49,14 +49,14 @@ export default function Swiggy() {
             setError(null);
 
             const [productsData, benchmarksData] = await Promise.all([
-                getProducts('swiggy', brandSlug),
+                getProducts('instamart', brandSlug),
                 getBenchmarks(brandSlug)
             ]);
 
             setProducts(productsData);
             const benchData = {};
             Object.keys(benchmarksData).forEach(key => {
-                benchData[key] = benchmarksData[key].swiggy || '';
+                benchData[key] = benchmarksData[key].instamart || '';
             });
             setBenchmarks(benchData);
 

@@ -186,11 +186,17 @@ export default function Header() {
                               e.stopPropagation();
                               console.log('Sign Out clicked');
                               setIsDropdownOpen(false);
-                              setTimeout(() => {
-                                if (signOut) {
-                                  signOut().catch(console.error);
-                                }
-                              }, 100);
+                              setTimeout(async () => {
+  try {
+    if (signOut) {
+      await signOut();
+    }
+    navigate('/login', { replace: true });
+  } catch (err) {
+    console.error(err);
+  }
+}, 100);
+
                             }}
                             className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors"
                             type="button"

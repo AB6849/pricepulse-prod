@@ -28,7 +28,7 @@ export async function upsertProducts(products, platform, brand) {
                 url: parseString(product.url), // ✅ ADD THIS LINE
                 name: parseString(product.name),
                 image: parseString(product.image),
-                price: parsePrice(product.current_price) ?? 0,
+                price: parsePrice(product.current_price),
                 original_price: parsePrice(product.original_price),
                 discount: parseString(product.discount),
                 unit: parseString(product.unit),
