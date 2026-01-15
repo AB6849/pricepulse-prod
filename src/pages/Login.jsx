@@ -96,8 +96,8 @@ export default function Login() {
           {/* Logo */}
           <div className="text-center mb-8">
             <img
-              src="/goatlogo.png"
-              alt="Goat Logo"
+              src="/pricepulselogo.png"
+              alt="PricePulse Logo"
               className="w-20 h-20 mx-auto mb-4 filter brightness-0 invert drop-shadow-lg"
               style={{
                 filter: 'invert(1) brightness(1.8) drop-shadow(0 0 10px rgba(147, 51, 234, 0.7))'

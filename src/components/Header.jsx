@@ -53,11 +53,11 @@ export default function Header() {
     <header className="gradient-bg text-white shadow md:shadow-2xl sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3 md:py-6">
         <div className="flex justify-between items-center">
-          <Link to="/" className="flex items-center gap-1">
+          <Link to="/" className="flex items-center gap-3">
             <img
               src="/pricepulselogo.png"
               alt="PricePulse Logo"
-              className="logo-glow-white h-9 md:h-16 -mr-1"
+              className="logo-glow-white h-9 md:h-12 -mr-1 invert"
             />
             <div className="leading-tight">
               <h1 className="text-lg md:text-3xl font-bold">PricePulse</h1>

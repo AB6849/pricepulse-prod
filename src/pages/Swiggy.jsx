@@ -4,7 +4,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { isOutOfStock } from '../utils/csvParser';
 import { getProducts, getBenchmarks } from '../services/productService';
-
+import { getPricingCalendar } from '../services/pricingCalendarService';
 
 export default function Swiggy() {
     const { currentBrand, loading: authLoading, brands } = useAuth();
@@ -20,11 +20,53 @@ export default function Swiggy() {
     const [displayLimit, setDisplayLimit] = useState(50);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const observerTarget = useRef(null);
-
-    // Find URL from catalogue using flexible matching
+    const hasHydratedFromCache = useRef(false);
+    const [pricingMode, setPricingMode] = useState('BAU');
 
     useEffect(() => {
-        if (authLoading) return;
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      sessionStorage.setItem('swiggy-scroll', window.scrollY);
+    }
+  };
+
+  window.addEventListener('visibilitychange', handleVisibilityChange);
+
+  return () => {
+    window.removeEventListener('visibilitychange', handleVisibilityChange);
+  };
+}, []);
+
+useEffect(() => {
+  const cached = sessionStorage.getItem(`swiggy-cache-${brandSlug}`);
+
+  if (cached) {
+    const parsed = JSON.parse(cached);
+
+    setProducts(parsed.products || []);
+    setBenchmarks(parsed.benchmarks || {});
+    setPricingMode(parsed.pricingMode || 'BAU');
+    setDisplayLimit(parsed.displayLimit || 50);
+
+    setLoading(false);
+    hasHydratedFromCache.current = true;
+    return;
+  }
+}, [brandSlug]);
+
+useEffect(() => {
+  if (!loading && products.length && hasHydratedFromCache.current) {
+    const y = sessionStorage.getItem('swiggy-scroll');
+    if (y) {
+      requestAnimationFrame(() => {
+        window.scrollTo(0, Number(y));
+      });
+    }
+  }
+}, [loading, products.length]);
+
+    useEffect(() => {
+  if (authLoading || hasHydratedFromCache.current) return;
 
         if (!currentBrand && brands && brands.length === 0) {
             setError('No brands assigned. Contact admin to get access.');
@@ -48,25 +90,52 @@ export default function Swiggy() {
             setLoading(true);
             setError(null);
 
-            const [productsData, benchmarksData] = await Promise.all([
+            const today = new Date().toLocaleDateString('en-CA', {
+                timeZone: 'Asia/Kolkata'
+            }); // YYYY-MM-DD
+
+            const [productsData, benchmarksData, calendarData] = await Promise.all([
                 getProducts('instamart', brandSlug),
-                getBenchmarks(brandSlug)
+                getBenchmarks(brandSlug),
+                getPricingCalendar({
+                    brand: brandSlug,
+                    fromDate: today,
+                    toDate: today
+                })
             ]);
 
+
             setProducts(productsData);
-            const benchData = {};
-            Object.keys(benchmarksData).forEach(key => {
-                benchData[key] = benchmarksData[key].instamart || '';
-            });
-            setBenchmarks(benchData);
+
+            // benchmarksData now = { instamart: { productName: { bau, event } } }
+            setBenchmarks(benchmarksData.swiggy || {});
+            // Determine today's pricing mode
+            const modeForToday =
+                calendarData?.[today]?.swiggy || 'BAU';
+
+            setPricingMode(modeForToday);
 
         } catch (err) {
-            setError('Failed to load products');
+            console.error('Error fetching data:', err);
+            setError('Failed to load products: ' + err.message);
         } finally {
             setLoading(false);
         }
     }
 
+    useEffect(() => {
+  if (!products.length) return;
+
+  sessionStorage.setItem(
+    `swiggy-cache-${brandSlug}`,
+    JSON.stringify({
+      products,
+      benchmarks,
+      pricingMode,
+      displayLimit
+    })
+  );
+}, [products, benchmarks, pricingMode, displayLimit, brandSlug]);
 
     const { filteredProducts, displayedProducts } = useMemo(() => {
         let filtered = products;
@@ -81,28 +150,31 @@ export default function Swiggy() {
         } else if (filterBy === 'oos') {
             filtered = filtered.filter(p => isOutOfStock(p.in_stock));
         } else if (filterBy !== 'all') {
-            filtered = filtered.filter(p => {
-                const benchmark = benchmarks[p.name?.toLowerCase()];
-                if (!benchmark || !p.price) return false;
-                const diff = p.price - parseFloat(benchmark);
-                if (filterBy === 'above') return diff > 0;
-                if (filterBy === 'below') return diff < 0;
-                if (filterBy === 'at') return Math.abs(diff) < 0.01;
-                return true;
-            });
+
         }
 
-        const sorted = [...filtered].sort((a, b) => {
+        const sorted = filtered.sort((a, b) => {
             if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
             if (sortBy === 'price') return (a.price || 0) - (b.price || 0);
             if (sortBy === 'price-desc') return (b.price || 0) - (a.price || 0);
             if (sortBy === 'diff' || sortBy === 'diff-desc') {
                 const getDiff = (p) => {
-                    const bench = benchmarks[p.name?.toLowerCase()];
-                    return bench ? (p.price || 0) - parseFloat(bench) : 0;
+                    const bench = benchmarks?.[p.product_id];
+                    if (!bench || !p.price) return 0;
+
+                    const reference =
+                        pricingMode === 'EVENT' ? bench.event : bench.bau;
+
+                    if (reference === null || reference === undefined) return 0;
+
+                    return p.price - reference;
                 };
-                return sortBy === 'diff' ? getDiff(a) - getDiff(b) : getDiff(b) - getDiff(a);
+
+                return sortBy === 'diff'
+                    ? getDiff(a) - getDiff(b)
+                    : getDiff(b) - getDiff(a);
             }
+
             return 0;
         });
 
@@ -110,7 +182,7 @@ export default function Swiggy() {
             filteredProducts: sorted,
             displayedProducts: sorted.slice(0, displayLimit)
         };
-    }, [products, searchQuery, filterBy, sortBy, benchmarks, displayLimit]);
+    }, [products, searchQuery, filterBy, sortBy, benchmarks, pricingMode, displayLimit]);
 
     const stats = useMemo(() => ({
         total: products.length,
@@ -201,20 +273,24 @@ export default function Swiggy() {
     }
 
     return (
-        <div className="min-h-screen" key="swiggy-v1">
+        <div className="min-h-screen" key="instamart-v1">
             <Header />
             <main className="container mx-auto px-4 py-6 max-w-7xl">
                 {/* Compact Header */}
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <img src="/instamart_logo.webp" alt="Swiggy Instamart" className="w-10 h-10" />
+                        <img src="/instamart_logo.webp" alt="Instamart" className="w-10 h-10" />
                         <div>
-                            <h1 className="text-2xl font-bold text-white">Swiggy Instamart</h1>
+                            <h1 className="text-2xl font-bold text-white">Instamart</h1>
                             {currentBrand && <p className="text-xs text-gray-400">{currentBrand.brand_name}</p>}
                         </div>
                     </div>
 
-                    <div className="flex gap-2 text-xs">
+                    <div className="flex gap-2 text-xs items-center">
+                        <div className="text-xs px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                            {pricingMode} DAY
+                        </div>
+
                         <div className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
                             <span className="text-gray-400">Total:</span>
                             <span className="text-white font-semibold ml-1">{stats.total}</span>
@@ -226,6 +302,7 @@ export default function Swiggy() {
                             <span className="text-red-400">{stats.outOfStock}</span>
                         </div>
                     </div>
+
                 </div>
 
                 {/* Compact Controls */}
@@ -284,93 +361,103 @@ export default function Swiggy() {
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                             {displayedProducts.map((product, idx) => {
-                                const benchmark = benchmarks[product.name?.toLowerCase()];
-                                const hasBenchmark = benchmark && benchmark !== '';
-                                const priceDiff = hasBenchmark ? (product.price || 0) - parseFloat(benchmark) : null;
+                                const benchmark =
+                                    benchmarks?.[product.product_id];
+
+                                const referencePrice =
+                                    pricingMode === 'EVENT'
+                                        ? benchmark?.event
+                                        : benchmark?.bau;
+
+                                const hasBenchmark =
+                                    referencePrice !== null &&
+                                    referencePrice !== undefined;
+
+                                const priceDiff =
+                                    hasBenchmark && product.price
+                                        ? product.price - referencePrice
+                                        : null;
+
                                 const isOOS = isOutOfStock(product.in_stock);
+                                let statusLabel = 'Benchmark Missing';
+                                let statusClass = 'bg-gray-500/20 text-gray-400 border border-gray-500/30';
 
-                                const CardContent = (
-                                    <div
-                                        className="bg-white/5 rounded-lg border border-white/10 overflow-hidden hover:border-indigo-500/50 transition-all duration-150 hover:shadow-lg hover:shadow-indigo-500/20"
-                                    >
-                                        <div className="relative h-32 bg-white/5">
-                                            <img
-                                                src={product.image}
-                                                alt={product.name}
-                                                loading="lazy"
-                                                className="w-full h-full object-contain p-2"
-                                            />
-                                            {isOOS && (
-                                                <div className="absolute top-1 right-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
-                                                    OOS
-                                                </div>
-                                            )}
-                                            {hasBenchmark && priceDiff !== null && Math.abs(priceDiff) > 0.01 && (
-                                                <div className={`absolute top-1 left-1 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${priceDiff < 0 ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                                                    }`}>
-                                                    {priceDiff < 0 ? '-' : '+'}{Math.abs(priceDiff).toFixed(0)}
-                                                </div>
-                                            )}
-                                        </div>
+                                if (hasBenchmark && priceDiff !== null) {
+                                    if (Math.abs(priceDiff) < 1) {
+                                        statusLabel = `Correct (${pricingMode})`;
+                                        statusClass = 'bg-green-500/20 text-green-400 border border-green-500/30';
+                                    } else if (priceDiff > 0) {
+                                        statusLabel = `Above ${pricingMode} (+₹${priceDiff.toFixed(0)})`;
+                                        statusClass = 'bg-red-500/20 text-red-400 border border-red-500/30';
+                                    } else {
+                                        statusLabel = `Below ${pricingMode} (-₹${Math.abs(priceDiff).toFixed(0)})`;
+                                        statusClass = 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30';
+                                    }
+                                }
 
-                                        <div className="p-2">
-                                            <h3 className="text-white text-xs font-medium mb-1 line-clamp-2" style={{ minHeight: '2rem' }}>
-                                                {product.name}
-                                            </h3>
+                                return (
+                                    <a
+  href={product.url}
+  target="_blank"
+  rel="noopener noreferrer"
+  onClick={() => {
+    sessionStorage.setItem('swiggy-scroll', window.scrollY);
+  }}
+  className="block group"
+>
 
-                                            {product.unit && (
-                                                <p className="text-gray-400 text-[10px] mb-2">{product.unit}</p>
-                                            )}
+                                        <div
+                                            className="bg-white/5 rounded-lg border border-white/10 overflow-hidden hover:border-indigo-500/50 transition-all duration-150 hover:shadow-lg hover:shadow-indigo-500/20"
+                                        >
+                                            <div className="relative h-32 bg-white/5">
+                                                <img
+                                                    src={product.image}
+                                                    alt={product.name}
+                                                    loading="lazy"
+                                                    className="w-full h-full object-contain p-2"
+                                                />
+                                                {isOOS && (
+                                                    <div className="absolute top-1 right-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
+                                                        OOS
+                                                    </div>
+                                                )}
+                                                {hasBenchmark && priceDiff !== null && Math.abs(priceDiff) > 0.01 && (
+                                                    <div className={`absolute top-1 left-1 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${priceDiff < 0 ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                                                        }`}>
+                                                        {priceDiff < 0 ? '-' : '+'}{Math.abs(priceDiff).toFixed(0)}
+                                                    </div>
+                                                )}
+                                            </div>
 
-                                            <div className="space-y-1.5">
-                                                {/* Price + MRP */}
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-green-400 text-lg font-bold">₹{product.price}</p>
-                                                    {product.original_price && product.original_price !== product.price && (
-                                                        <p className="text-gray-400 text-xs line-through">MRP ₹{product.original_price}</p>
-                                                    )}
-                                                </div>
+                                            <div className="p-2">
+                                                <h3 className="text-white text-xs font-medium mb-1 line-clamp-2" style={{ minHeight: '2rem' }}>
+                                                    {product.name}
+                                                </h3>
 
-                                                {/* vs Benchmark Status - Bottom Badge */}
-                                                <div className={`text-center text-[10px] px-2 py-1.5 rounded font-semibold ${!hasBenchmark
-                                                    ? 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
-                                                    : priceDiff < 0
-                                                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                                        : priceDiff > 0
-                                                            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                                            : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                                                    }`}>
-                                                    {!hasBenchmark
-                                                        ? 'Benchmark Not Defined'
-                                                        : priceDiff < 0
-                                                            ? `Below Benchmark (-₹${Math.abs(priceDiff).toFixed(0)})`
-                                                            : priceDiff > 0
-                                                                ? `Above Benchmark (+₹${Math.abs(priceDiff).toFixed(0)})`
-                                                                : 'At Benchmark'
-                                                    }
+                                                {product.unit && (
+                                                    <p className="text-gray-400 text-[10px] mb-2">{product.unit}</p>
+                                                )}
+
+                                                <div className="space-y-1.5">
+                                                    {/* Price + MRP */}
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-green-400 text-lg font-bold">₹{product.price}</p>
+                                                        {product.original_price && product.original_price !== product.price && (
+                                                            <p className="text-gray-400 text-xs line-through">MRP ₹{product.original_price}</p>
+                                                        )}
+                                                    </div>
+
+                                                    {/* vs Benchmark Status - Bottom Badge */}
+                                                    <div
+                                                        className={`text-center text-[10px] px-2 py-1.5 rounded font-semibold border ${statusClass}`}
+                                                    >
+                                                        {statusLabel}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                );
-
-                                // Only wrap in anchor if we have a URL from catalogue
-                                return typeof product.url === 'string' && product.url.startsWith('http') ? (
-                                    <a
-                                        href={product.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        key={product.id ?? product.product_id}
-                                        className="block group"
-                                    >
-                                        {CardContent}
                                     </a>
-                                ) : (
-                                    <div key={product.id ?? product.product_id} className="block opacity-60 cursor-not-allowed">
-                                        {CardContent}
-                                    </div>
                                 );
-
                             })}
                         </div>
 

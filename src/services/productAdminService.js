@@ -23,22 +23,28 @@ export async function upsertProducts(products, platform, brand) {
                 product.in_stock &&
                 product.in_stock.toLowerCase().includes('out of stock');
 
-            return {
-                product_id: product.product_id,
-                url: parseString(product.url), // ✅ ADD THIS LINE
-                name: parseString(product.name),
-                image: parseString(product.image),
-                price: parsePrice(product.current_price),
-                original_price: parsePrice(product.original_price),
-                discount: parseString(product.discount),
-                unit: parseString(product.unit),
-                in_stock: parseString(product.in_stock),
-                platform,
-                brand,
-                updated_at: new Date().toISOString()
-            };
+            const safeName =
+    typeof product.name === "string" && product.name.trim().length > 0
+        ? product.name.trim()
+        : "NA";
+
+return {
+    product_id: product.product_id,
+    url: parseString(product.url),
+    name: safeName, // 🔒 NEVER NULL
+    image: parseString(product.image),
+    price: parsePrice(product.current_price),
+    original_price: parsePrice(product.original_price),
+    discount: parseString(product.discount),
+    unit: parseString(product.unit),
+    in_stock: parseString(product.in_stock),
+    platform,
+    brand,
+    updated_at: new Date().toISOString()
+};
+
         })
-        .filter(Boolean);
+.filter(p => p.name !== null)
 
     if (transformed.length === 0) {
         console.log(`⚠️ No valid products to upsert for ${platform} (${brand})`);

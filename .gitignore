@@ -3,3 +3,6 @@ node_modules/
 .vite/
 dist/
 *.log
+# Local data exports
+*.csv
+scraper_log_*.txt

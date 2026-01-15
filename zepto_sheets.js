@@ -85,6 +85,28 @@ function clean(p) {
   return c === "" ? null : c;
 }
 
+/***************************************************************
+* DEDUPLICATION HELPER
+***************************************************************/
+function dedupeProducts(products) {
+  const seen = new Map();
+
+  for (const p of products) {
+    const key = [
+      p.name,
+      p.current_price,
+      p.original_price,
+      p.unit,
+      p.in_stock
+    ].map(v => (v ?? "NA").toString().trim()).join("||");
+
+    if (!seen.has(key)) {
+      seen.set(key, p);
+    }
+  }
+
+  return Array.from(seen.values());
+}
 
 function cleanProductName(name) {
   if (!name) return "NA";
@@ -164,15 +186,17 @@ async function processProductWithRetry(browser, page, url, maxRetries = 3) {
 
       if (attempt === maxRetries || !shouldRetry(err)) {
         console.log(`💥 Final failure after ${maxRetries} attempts`);
-        return {
-          name: "SCRAPE_FAILED",
-          image: "NA",
-          original_price: "NA",
-          current_price: "NA",
-          discount: "NA",
-          unit: "SCRAPE_FAILED",
-          in_stock: "SCRAPE_FAILED"
-        };
+        return [{
+  product_id: extractProductId(url),
+  url,
+  name: "SCRAPE_FAILED",
+  image: "NA",
+  original_price: "NA",
+  current_price: "NA",
+  discount: "NA",
+  unit: "NA",
+  in_stock: "SCRAPE_FAILED"
+}];
       }
 
       console.log(`⏳ Waiting ${attempt * 2000}ms before retry...`);
@@ -228,7 +252,7 @@ async function setLocationFromProductPage(page) {
 
     await page.waitForSelector(pincodeInput, { timeout: 10000 });
     await page.click(pincodeInput);
-    await page.type(pincodeInput, "560012", { delay: 100 });
+    await page.type(pincodeInput, "560102", { delay: 100 });
     await sleep(1000);
 
 
@@ -455,7 +479,7 @@ function processData(data, url) {
   return {
     product_id: extractProductId(url), // ✅ Zepto pvid
     url,                               // ✅ canonical PDP URL
-    name: cleanProductName(data.name),
+name: cleanProductName(data.name || "NA"),
     image: data.image || "NA",
     original_price: original_price || "NA",
     current_price: current_price || "NA",
@@ -598,6 +622,14 @@ async function scrape() {
 
   await browser.close();
 
+/***************************************************************
+* REMOVE DUPLICATES
+***************************************************************/
+console.log(`🧹 Deduplicating scraped variants...`);
+const dedupedOut = dedupeProducts(out);
+
+console.log(`📉 Before dedupe: ${out.length}`);
+console.log(`📈 After dedupe:  ${dedupedOut.length}`);
 
   /***************************************************************
    * WRITE OUTPUT
@@ -616,16 +648,28 @@ async function scrape() {
   const rows = [headers.join(",")];
 
 
-  for (const r of out) {
-    rows.push(headers.map(h => `"${(r[h] || "").replace(/"/g, '""')}"`).join(","));
-  }
-
+  for (const r of dedupedOut) {
+  rows.push(headers.map(h => `"${(r[h] || "").replace(/"/g, '""')}"`).join(","));
+}
 
   fs.writeFileSync("zepto_universal_desktop.csv", rows.join("\n"));
-  console.log(`\n📁 Saved: zepto_universal_desktop.csv (${out.length} variants)`);
+console.log(`📁 Saved: zepto_universal_desktop.csv (${dedupedOut.length} variants)`);
 
+const safeOut = dedupedOut.map(p => ({
+  ...p,
+  name:
+    typeof p.name === "string" && p.name.trim().length > 0
+      ? p.name.trim()
+      : "NA",
+  image: p.image || "NA",
+  original_price: p.original_price || "NA",
+  current_price: p.current_price || "NA",
+  discount: p.discount || "NA",
+  unit: p.unit || "NA",
+  in_stock: p.in_stock || "NA"
+}));
 
-  await writeToSupabase(out);
+  await writeToSupabase(safeOut);
   console.log(`✅ Zepto scraping completed!`);
   console.log(`📊 Summary:`);
   console.log(`   - Total variants scraped: ${out.length}`);

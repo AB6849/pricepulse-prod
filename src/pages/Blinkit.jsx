@@ -9,7 +9,6 @@ import { getPricingCalendar } from '../services/pricingCalendarService';
 export default function Blinkit() {
     const { currentBrand, loading: authLoading, brands } = useAuth();
     const brandSlug = currentBrand?.brand_slug || 'petcrux';
-
     const [products, setProducts] = useState([]);
     const [benchmarks, setBenchmarks] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
@@ -20,22 +19,76 @@ export default function Blinkit() {
     const [displayLimit, setDisplayLimit] = useState(50);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const observerTarget = useRef(null);
+    const hasHydratedFromCache = useRef(false);
+    const hasInitialized = useRef(false);
     const [pricingMode, setPricingMode] = useState('BAU');
+
+      useEffect(() => {
+    sessionStorage.removeItem('blinkit-cache');
+    sessionStorage.removeItem('blinkit-scroll');
+    hasInitialized.current = false;
+    hasHydratedFromCache.current = false;
+  }, [currentBrand?.brand_slug]);
+
+    useEffect(() => {
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      sessionStorage.setItem('blinkit-scroll', window.scrollY);
+    }
+  };
+
+  window.addEventListener('visibilitychange', handleVisibilityChange);
+
+  return () => {
+    window.removeEventListener('visibilitychange', handleVisibilityChange);
+  };
+}, []);
+
+useEffect(() => {
+  const cached = sessionStorage.getItem('blinkit-cache');
+
+  if (cached) {
+    const parsed = JSON.parse(cached);
+
+    setProducts(parsed.products || []);
+    setBenchmarks(parsed.benchmarks || {});
+    setPricingMode(parsed.pricingMode || 'BAU');
+    setDisplayLimit(parsed.displayLimit || 50);
+    setLoading(false);
+
+    hasHydratedFromCache.current = true;
+    hasInitialized.current = true;
+  }
+}, []);
+
+
+useEffect(() => {
+if (!loading && products.length && hasHydratedFromCache.current) {
+    const y = sessionStorage.getItem('blinkit-scroll');
+    if (y) {
+      requestAnimationFrame(() => {
+        window.scrollTo(0, Number(y));
+      });
+    }
+  }
+}, [loading, products.length]);
 
 
     useEffect(() => {
-        if (authLoading) return;
+  if (authLoading) return;
+  if (hasInitialized.current) return;
 
-        if (!currentBrand && brands && brands.length === 0) {
-            setError('No brands assigned. Contact admin to get access.');
-            setLoading(false);
-            return;
-        }
+  if (!currentBrand && brands && brands.length === 0) {
+    setError('No brands assigned. Contact admin to get access.');
+    setLoading(false);
+    hasInitialized.current = true;
+    return;
+  }
 
-        if (currentBrand || brandSlug) {
-            fetchData();
-        }
-    }, [currentBrand, authLoading, brands, brandSlug]);
+  fetchData().finally(() => {
+    hasInitialized.current = true;
+  });
+}, [authLoading, currentBrand, brands]);
 
     // Reset display limit when filters change
     useEffect(() => {
@@ -64,16 +117,12 @@ export default function Blinkit() {
 
 
             setProducts(productsData);
-
             // benchmarksData now = { blinkit: { productName: { bau, event } } }
             setBenchmarks(benchmarksData.blinkit || {});
-
             // Determine today's pricing mode
             const modeForToday =
                 calendarData?.[today]?.blinkit || 'BAU';
-
             setPricingMode(modeForToday);
-
         } catch (err) {
             console.error('Error fetching data:', err);
             setError('Failed to load products: ' + err.message);
@@ -81,6 +130,21 @@ export default function Blinkit() {
             setLoading(false);
         }
     }
+
+    useEffect(() => {
+  if (!products.length || !hasInitialized.current) return;
+
+  sessionStorage.setItem(
+    'blinkit-cache',
+    JSON.stringify({
+      products,
+      benchmarks,
+      pricingMode,
+      displayLimit
+    })
+  );
+}, [products, benchmarks, pricingMode, displayLimit]);
+
 
     const { filteredProducts, displayedProducts } = useMemo(() => {
         let filtered = products;
@@ -98,7 +162,7 @@ export default function Blinkit() {
 
         }
 
-        const sorted = filtered.sort((a, b) => {
+        const sorted = [...filtered].sort((a, b) => {
             if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
             if (sortBy === 'price') return (a.price || 0) - (b.price || 0);
             if (sortBy === 'price-desc') return (b.price || 0) - (a.price || 0);
@@ -218,7 +282,7 @@ export default function Blinkit() {
     }
 
     return (
-        <div className="min-h-screen" key="blinkit-v1">
+<div className="min-h-screen">
             <Header />
             <main className="container mx-auto px-4 py-6 max-w-7xl">
                 {/* Compact Header */}
@@ -342,12 +406,15 @@ export default function Blinkit() {
 
                                 return (
                                     <a
-                                        href={product.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        key={`${product.name}-${idx}`}
-                                        className="block group"
-                                    >
+  href={product.url}
+  target="_blank"
+  rel="noopener noreferrer"
+  onClick={() => {
+    sessionStorage.setItem('blinkit-scroll', window.scrollY);
+  }}
+  className="block group"
+>
+
                                         <div
                                             className="bg-white/5 rounded-lg border border-white/10 overflow-hidden hover:border-indigo-500/50 transition-all duration-150 hover:shadow-lg hover:shadow-indigo-500/20"
                                         >

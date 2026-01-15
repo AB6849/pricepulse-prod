@@ -169,7 +169,7 @@ async function setLocationFromProductPage(page) {
 
         await page.waitForSelector(pincodeInput, { timeout: 10000 });
         await page.click(pincodeInput);
-        await page.type(pincodeInput, "560012", { delay: 100 });
+        await page.type(pincodeInput, "560102", { delay: 100 });
         await sleep(1000);
 
 

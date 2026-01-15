@@ -5,6 +5,7 @@ import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import Particles from '../../components/Particles';
 import Toast from '../../components/Toast';
+import feather from 'feather-icons';
 
 export default function HomeDesktop() {
   const { brands, currentBrand, switchBrand, loading } = useAuth();
@@ -19,16 +20,8 @@ export default function HomeDesktop() {
   }, [currentBrand]);
 
   useEffect(() => {
-    if (window.feather) {
-      window.feather.replace();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (window.feather) {
-      window.feather.replace();
-    }
-  }, []);
+  feather.replace();
+}, []);
 
   const handleBrandSelect = (brand) => {
     setSelectedBrand(brand);
@@ -61,7 +54,7 @@ export default function HomeDesktop() {
 
   const platforms = [
     { key: 'blinkit', name: 'Blinkit', logo: '/Blinkit-yellow-rounded.svg', bgColor: 'bg-indigo-500/20', borderColor: 'border-indigo-500/30', textColor: 'text-indigo-300', badgeBg: 'bg-indigo-500/20', badgeText: 'text-indigo-300', badgeBorder: 'border-indigo-500/30' },
-    { key: 'swiggy', name: 'Swiggy', logo: '/instamart_logo.webp', bgColor: 'bg-red-500/20', borderColor: 'border-red-500/30', textColor: 'text-red-300', badgeBg: 'bg-red-500/20', badgeText: 'text-red-300', badgeBorder: 'border-red-500/30' },
+    { key: 'swiggy', name: 'Instamart', logo: '/instamart_logo.webp', bgColor: 'bg-red-500/20', borderColor: 'border-red-500/30', textColor: 'text-red-300', badgeBg: 'bg-red-500/20', badgeText: 'text-red-300', badgeBorder: 'border-red-500/30' },
     { key: 'zepto', name: 'Zepto', logo: '/zeptologo.webp', bgColor: 'bg-green-500/20', borderColor: 'border-green-500/30', textColor: 'text-green-300', badgeBg: 'bg-green-500/20', badgeText: 'text-green-300', badgeBorder: 'border-green-500/30' },
     { key: 'amazon', name: 'Amazon', logo: '/amazonlogo.png', bgColor: 'bg-yellow-500/20', borderColor: 'border-yellow-500/30', textColor: 'text-yellow-300', badgeBg: 'bg-yellow-500/20', badgeText: 'text-yellow-300', badgeBorder: 'border-yellow-500/30' }
   ];

@@ -389,9 +389,25 @@ async function scrape() {
     fs.writeFileSync("petcrux_amazon.csv", csv.join("\n"));
     console.log("📁 CSV saved");
 
+const safeRows = rows.map(r => {
+  let price = r.current_price;
+
+  if (price === "NA" || price === "") {
+    price = r.in_stock === "Out of Stock" ? "0" : price;
+  }
+
+  return {
+    ...r,
+    current_price: price,
+    original_price:
+      r.original_price !== "NA" && r.original_price !== ""
+        ? r.original_price
+        : price
+  };
+});
 
     // ✅ SUPABASE
-    await upsertProducts(rows, 'amazon', 'petcrux');
+await upsertProducts(safeRows, 'amazon', 'petcrux');
     console.log(`✅ Supabase updated: ${rows.length} products`);
 
 
