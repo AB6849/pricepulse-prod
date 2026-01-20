@@ -28,13 +28,12 @@ export default function Footer() {
       <div className="container mx-auto px-4 text-center">
         <div className="flex justify-center items-center space-x-2 mb-4">
   <img
-    src="/pricepulselogo.png"
+    src="/trabenfull.png"
     alt="PricePulse logo"
-    className="w-8 h-8 object-contain invert"
+    className="w-90 h-12 object-contain invert"
   />
-  <h3 className="text-2xl font-bold">PricePulse</h3>
 </div>
-        <p className="text-gray-400 mb-2">© 2025 PricePulse - The Ultimate Price Monitoring Tool</p>
+        <p className="text-gray-400 mb-2">© 2025 Traben - The Ultimate Price Monitoring Tool</p>
         <p className="text-sm text-gray-500">Live data from Google Sheets • Updated every 4 hours</p>
       </div>
     </footer>

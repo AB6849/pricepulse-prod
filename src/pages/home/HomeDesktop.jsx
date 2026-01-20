@@ -160,7 +160,7 @@ export default function HomeDesktop() {
 
       <section className="py-16 relative z-0 bg-black/20">
         <div className="container mx-auto px-4">
-          <h3 className="text-3xl font-bold text-center text-white mb-12">Why PricePulse?</h3>
+          <h3 className="text-3xl font-bold text-center text-white mb-12">Why Traben?</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="text-center animate-fadeInUp">
               <div className="w-16 h-16 bg-indigo-500/20 rounded-2xl mx-auto mb-4 flex items-center justify-center border border-indigo-500/30 feature-icon" style={{ color: '#667eea' }}>

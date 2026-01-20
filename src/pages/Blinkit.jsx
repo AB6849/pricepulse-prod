@@ -6,6 +6,13 @@ import { isOutOfStock } from '../utils/csvParser';
 import { getProducts, getBenchmarks } from '../services/productService';
 import { getPricingCalendar } from '../services/pricingCalendarService';
 
+function toTitleCase(str) {
+  if (!str) return str;
+  return str.replace(/\w\S*/g, word =>
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  );
+}
+
 export default function Blinkit() {
     const { currentBrand, loading: authLoading, brands } = useAuth();
     const brandSlug = currentBrand?.brand_slug || 'petcrux';
@@ -158,9 +165,25 @@ if (!loading && products.length && hasHydratedFromCache.current) {
             filtered = filtered.filter(p => !isOutOfStock(p.in_stock));
         } else if (filterBy === 'oos') {
             filtered = filtered.filter(p => isOutOfStock(p.in_stock));
-        } else if (filterBy !== 'all') {
+        } else if (filterBy === 'above' || filterBy === 'below' || filterBy === 'at') {
+  filtered = filtered.filter(p => {
+    const bench = benchmarks?.[p.product_id];
+    if (!bench || !p.price) return false;
 
-        }
+    const reference =
+      pricingMode === 'EVENT' ? bench.event : bench.bau;
+
+    if (reference === null || reference === undefined) return false;
+
+    const diff = p.price - reference;
+
+    if (filterBy === 'above') return diff > 1;
+    if (filterBy === 'below') return diff < -1;
+    if (filterBy === 'at') return Math.abs(diff) <= 1;
+
+    return true;
+  });
+}
 
         const sorted = [...filtered].sort((a, b) => {
             if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
@@ -440,8 +463,8 @@ if (!loading && products.length && hasHydratedFromCache.current) {
 
                                             <div className="p-2">
                                                 <h3 className="text-white text-xs font-medium mb-1 line-clamp-2" style={{ minHeight: '2rem' }}>
-                                                    {product.name}
-                                                </h3>
+  {toTitleCase(product.name)}
+</h3>
 
                                                 {product.unit && (
                                                     <p className="text-gray-400 text-[10px] mb-2">{product.unit}</p>

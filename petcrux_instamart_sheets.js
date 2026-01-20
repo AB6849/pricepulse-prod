@@ -1,6 +1,7 @@
 import puppeteer from 'puppeteer';
 import fs from 'fs';
 import { upsertProducts } from './src/services/productAdminService.js';
+import { resolveInstamartFromCatalog } from './src/services/resolveInstamartFromCatalog.js';
 
 function cleanPrice(text) {
   if (!text) return "NA";
@@ -11,14 +12,23 @@ async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function writeToSupabase(data) {
+async function writeToSupabase(scrapedProducts) {
   try {
-    await upsertProducts(data, 'swiggy', 'petcrux');
-    console.log(`✅ Wrote ${data.length} products to Supabase`);
+    const resolvedProducts = await resolveInstamartFromCatalog(
+      scrapedProducts,
+      'petcrux'
+    );
+
+    await upsertProducts(resolvedProducts, 'instamart', 'petcrux');
+
+    console.log(
+      `✅ Wrote ${resolvedProducts.length}/${scrapedProducts.length} products to Supabase`
+    );
   } catch (error) {
-    console.error("Supabase error:", error.message);
+    console.error("❌ Supabase error:", error.message);
   }
 }
+
 
 async function scrapeCataloguePage(catalogueUrl) {
   const browser = await puppeteer.launch({
@@ -175,27 +185,30 @@ async function scrapeCataloguePage(catalogueUrl) {
 (async () => {
   const CATALOGUE_URL = "https://www.swiggy.com/instamart/collection-listing?collectionId=106463&custom_back=true&brand=Petcrux";
 
-  console.log("🚀 Starting Petcrux Jeans Instamart Scraper");
+  console.log("🚀 Starting Petcrux Instamart Scraper");
 
-  const startTime = Date.now();
+  console.log("🚀 Starting PetcruxInstamart Scraper");
+
   const results = await scrapeCataloguePage(CATALOGUE_URL);
 
-  const endTime = Date.now();
-  console.log(`\n⏱️ Done in ${((endTime - startTime) / 1000).toFixed(2)}s`);
-
-  if (results.length === 0) {
-    console.log("⚠️ No products extracted — check if location popup blocked loading");
+  if (!results.length) {
+    console.log("⚠️ No products extracted");
     return;
   }
 
-  const header = ["name", "unit", "current_price", "original_price", "discount", "in_stock", "image"];
-  const csv = [
-    header.join(","),
-    ...results.map(p => header.map(h => `"${(p[h] || "").toString().replace(/"/g, '""')}"`).join(","))
-  ].join("\n");
+  fs.writeFileSync(
+    "instamart_petcrux.csv",
+    [
+      ["name","unit","current_price","original_price","discount","in_stock","image"].join(","),
+      ...results.map(p =>
+        ["name","unit","current_price","original_price","discount","in_stock","image"]
+          .map(h => `"${(p[h] || "").replace(/"/g, '""')}"`)
+          .join(",")
+      )
+    ].join("\n")
+  );
 
-  fs.writeFileSync("instamart_petcrux_jeans_final.csv", csv);
-  console.log(`📄 Saved ${results.length} products to instamart_petcrux_jeans_final.csv`);
+  console.log(`📄 CSV written`);
 
   await writeToSupabase(results);
 })();

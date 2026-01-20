@@ -48,7 +48,7 @@ export default function Benchmarks() {
         .from('products')
         .select('product_id, brand, platform, name')
         .eq('brand', currentBrand.brand_slug)
-        .neq('platform', 'swiggy');
+        .neq('platform', 'Instamart');
 
       if (baseError) throw baseError;
 
@@ -56,7 +56,7 @@ export default function Benchmarks() {
         .from('products')
         .select('brand, platform, name')
         .eq('brand', currentBrand.brand_slug)
-        .eq('platform', 'swiggy');
+        .eq('platform', 'Instamart');
 
       if (swiggyError) throw swiggyError;
 
@@ -162,7 +162,18 @@ export default function Benchmarks() {
         );
       }
 
-      setUploadedRows(rows);
+      const cleanedRows = rows.map(r => ({
+  ...r,
+  'BAU Price': r['BAU Price'] !== ''
+    ? Math.round(Number(r['BAU Price']))
+    : '',
+  'Event Price': r['Event Price'] !== ''
+    ? Math.round(Number(r['Event Price']))
+    : ''
+}));
+
+setUploadedRows(cleanedRows);
+
       setUploadError(null);
       setPreviewMode('benchmarks');
     } catch (err) {
@@ -183,7 +194,7 @@ export default function Benchmarks() {
         Date: '2026-01-01',
         Amazon: 'EVENT',
         Blinkit: 'BAU',
-        Swiggy: 'EVENT',
+        Instamart: 'EVENT',
         Zepto: 'EVENT'
       }
     ];
@@ -240,7 +251,7 @@ export default function Benchmarks() {
           date = String(row.Date).trim();
         }
 
-        ['Amazon', 'Blinkit', 'Swiggy', 'Zepto'].forEach(platform => {
+        ['Amazon', 'Blinkit', 'Instamart', 'Zepto'].forEach(platform => {
           const mode = row[platform]?.toString().trim().toUpperCase();
           if (mode === 'BAU' || mode === 'EVENT') {
             const key = `${date}|${currentBrand.brand_slug}|${platform.toLowerCase()}`;
@@ -304,40 +315,71 @@ export default function Benchmarks() {
     }
   }
 
+  function dedupeBenchmarks(rows) {
+  const map = new Map();
+
+  rows.forEach(row => {
+    const key = `${row.product_id}|${row.brand}|${row.platform}`;
+
+    // last row wins (Excel bottom overrides top)
+    map.set(key, row);
+  });
+
+  return Array.from(map.values());
+}
+
   async function confirmUpload() {
-    if (!currentBrand) return;
+  if (!currentBrand) return;
 
-    try {
-      setSaving(true);
+  try {
+    setSaving(true);
 
-      const payload = uploadedRows.map(row => ({
-        product_id: row.product_id,
-        name: row.name,
-        brand: row.brand,
-        platform: row.platform,
-        bau_price: row['BAU Price'] || null,
-        event_price: row['Event Price'] || null,
-        updated_at: new Date().toISOString()
-      }));
+    // 🔹 STEP 1: dedupe uploaded rows
+    const dedupedRows = dedupeBenchmarks(uploadedRows);
 
-      const { error } = await supabase
-        .from('benchmarks')
-        .upsert(payload, {
-          onConflict: 'product_id,brand,platform'
-        });
-
-      if (error) throw error;
-
-      setSuccessPopup('benchmarks');
-      setTimeout(() => setSuccessPopup(null), 2000);
-      setUploadedRows([]);
-    } catch (err) {
-      console.error('❌ Upload failed:', err);
-      alert(err.message || 'Failed to save benchmarks');
-    } finally {
-      setSaving(false);
+    // 🔹 STEP 2: warn user if duplicates existed
+    if (dedupedRows.length !== uploadedRows.length) {
+      alert(
+        'Duplicate products found in Excel. Latest row was used for each product.'
+      );
     }
+
+    // 🔹 STEP 3: build payload from deduped rows
+    const payload = dedupedRows.map(row => ({
+      product_id: row.product_id,
+      name: row.name,
+      brand: row.brand,
+      platform: row.platform,
+      bau_price:
+        row['BAU Price'] !== '' && row['BAU Price'] != null
+          ? Math.round(Number(row['BAU Price']))
+          : null,
+      event_price:
+        row['Event Price'] !== '' && row['Event Price'] != null
+          ? Math.round(Number(row['Event Price']))
+          : null,
+      updated_at: new Date().toISOString()
+    }));
+
+    // 🔹 STEP 4: upsert
+    const { error } = await supabase
+      .from('benchmarks')
+      .upsert(payload, {
+        onConflict: 'product_id,brand,platform'
+      });
+
+    if (error) throw error;
+
+    setSuccessPopup('benchmarks');
+    setTimeout(() => setSuccessPopup(null), 2000);
+    setUploadedRows([]);
+  } catch (err) {
+    console.error('❌ Upload failed:', err);
+    alert(err.message || 'Failed to save benchmarks');
+  } finally {
+    setSaving(false);
   }
+}
 
   async function loadExistingBenchmarks() {
     if (!currentBrand) return;
@@ -656,7 +698,7 @@ export default function Benchmarks() {
                           <th className="px-3 py-2 text-left">Date</th>
                           <th className="px-3 py-2 text-center">Amazon</th>
                           <th className="px-3 py-2 text-center">Blinkit</th>
-                          <th className="px-3 py-2 text-center">Swiggy</th>
+                          <th className="px-3 py-2 text-center">Instamart</th>
                           <th className="px-3 py-2 text-center">Zepto</th>
                         </tr>
                       </thead>
@@ -668,7 +710,7 @@ export default function Benchmarks() {
                               {row.Date}
                             </td>
 
-                            {['Amazon', 'Blinkit', 'Swiggy', 'Zepto'].map(p => (
+                            {['Amazon', 'Blinkit', 'Instamart', 'Zepto'].map(p => (
                               <td
                                 key={p}
                                 className="px-3 py-2 text-center text-white"
@@ -710,7 +752,7 @@ export default function Benchmarks() {
                                 <th className="px-3 py-2 text-left">Date</th>
                                 <th className="px-3 py-2 text-center">Amazon</th>
                                 <th className="px-3 py-2 text-center">Blinkit</th>
-                                <th className="px-3 py-2 text-center">Swiggy</th>
+                                <th className="px-3 py-2 text-center">Instamart</th>
                                 <th className="px-3 py-2 text-center">Zepto</th>
                               </tr>
                             </thead>
@@ -720,7 +762,7 @@ export default function Benchmarks() {
                                 <tr key={idx} className="border-b border-white/10">
                                   <td className="px-3 py-2">{row.date}</td>
 
-                                  {['amazon', 'blinkit', 'swiggy', 'zepto'].map(p => (
+                                  {['amazon', 'blinkit', 'instamart', 'zepto'].map(p => (
                                     <td
                                       key={p}
                                       className="px-3 py-2 text-center text-white"

@@ -384,3 +384,25 @@ img {
 .animate-check {
   animation: checkPop 0.35s ease-out forwards;
 }
+.traben-glow {
+  position: relative;
+  z-index: 1;
+}
+
+.traben-glow::after {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  background: radial-gradient(
+    circle,
+    rgba(255,255,255,0.55) 0%,
+    rgba(255,255,255,0.25) 30%,
+    rgba(255,255,255,0.05) 55%,
+    transparent 70%
+  );
+  opacity: 0.45;
+  filter: blur(12px);
+  z-index: -1;
+  animation: trabenGlowPulse 4s ease-in-out infinite;
+  pointer-events: none;
+}

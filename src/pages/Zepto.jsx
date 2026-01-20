@@ -150,9 +150,26 @@ useEffect(() => {
                 filtered = filtered.filter(p => !isOutOfStock(p.in_stock));
             } else if (filterBy === 'oos') {
                 filtered = filtered.filter(p => isOutOfStock(p.in_stock));
-            } else if (filterBy !== 'all') {
-    
-            }
+            } else if (filterBy === 'above' || filterBy === 'below' || filterBy === 'at') {
+  filtered = filtered.filter(p => {
+    const bench = benchmarks?.[p.product_id];
+    if (!bench || !p.price) return false;
+
+    const reference =
+      pricingMode === 'EVENT' ? bench.event : bench.bau;
+
+    if (reference === null || reference === undefined) return false;
+
+    const diff = p.price - reference;
+
+    if (filterBy === 'above') return diff > 1;
+    if (filterBy === 'below') return diff < -1;
+    if (filterBy === 'at') return Math.abs(diff) <= 1;
+
+    return true;
+  });
+}
+
     
             const sorted = filtered.sort((a, b) => {
                 if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');

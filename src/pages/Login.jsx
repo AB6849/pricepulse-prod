@@ -96,22 +96,17 @@ export default function Login() {
           {/* Logo */}
           <div className="text-center mb-8">
             <img
-              src="/pricepulselogo.png"
-              alt="PricePulse Logo"
-              className="w-20 h-20 mx-auto mb-4 filter brightness-0 invert drop-shadow-lg"
+              src="/trabenfull.png"
+              alt="Traen Logo"
+              className="w-90 h-20 mx-auto mb-1 filter brightness-0 invert drop-shadow-lg"
               style={{
                 filter: 'invert(1) brightness(1.8) drop-shadow(0 0 10px rgba(147, 51, 234, 0.7))'
               }}
             />
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent mb-2">
-              PricePulse
-            </h1>
-            <p className="text-gray-300 text-sm">Smart Price Tracking</p>
           </div>
 
           {/* Welcome Text */}
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">Welcome Back</h2>
             <p className="text-gray-400">Sign in with your authorized Google account</p>
           </div>
 

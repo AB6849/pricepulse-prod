@@ -36,10 +36,12 @@ export async function resolveInstamartFromCatalog(scrapedProducts, brand) {
     }
 
     resolved.push({
-      ...p,
-      product_id: match.product_id,
-      url: match.url
-    });
+  ...p,
+  product_id: match.product_id,
+  url: match.url,
+  price: Number(p.current_price) || null,
+  original_price: Number(p.original_price) || null
+});
   }
 
   if (missed.length) {

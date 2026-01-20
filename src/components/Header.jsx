@@ -55,15 +55,11 @@ export default function Header() {
         <div className="flex justify-between items-center">
           <Link to="/" className="flex items-center gap-3">
             <img
-              src="/pricepulselogo.png"
-              alt="PricePulse Logo"
-              className="logo-glow-white h-9 md:h-12 -mr-1 invert"
-            />
+  src="/trabenfull.png"
+  alt="Traben Logo"
+  className="logo-glow-white h-12 md:h-16 -mr-1 invert traben-glow"
+/>
             <div className="leading-tight">
-              <h1 className="text-lg md:text-3xl font-bold">PricePulse</h1>
-              <p className="hidden md:block text-indigo-100 text-sm">
-                Smart Price Tracking
-              </p>
             </div>
           </Link>
 
@@ -95,7 +91,7 @@ export default function Header() {
                     className={`text-lg font-semibold hover:text-indigo-200 transition-all duration-300 hover:scale-110 ${isActive('/swiggy') ? 'bg-white text-indigo-600 px-3 py-1 rounded' : ''
                       }`}
                   >
-                    Swiggy
+                    Instamart
                   </Link>
                 </li>
                 <li>

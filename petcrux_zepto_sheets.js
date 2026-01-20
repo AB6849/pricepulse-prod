@@ -109,7 +109,7 @@ async function processProductWithRetry(browser, page, url, maxRetries = 3) {
                     name: "SCRAPE_FAILED",
                     image: "NA",
                     original_price: "NA",
-                    current_price: "NA",
+                    price: "NA",
                     discount: "NA",
                     unit: "SCRAPE_FAILED",
                     in_stock: "SCRAPE_FAILED"
@@ -226,7 +226,7 @@ async function extractDataForSize(page, sizeText) {
             "NA";
 
 
-        const current_price =
+        const price =
             text(".cp62rX.c9OiKy.cu4Qk6") ||
             text("[data-testid='product-price']") ||
             text("span[class*='price'][class*='current']") ||
@@ -260,7 +260,7 @@ async function extractDataForSize(page, sizeText) {
 
         return {
             name,
-            current_price,
+            price,
             original_price,
             discount,
             image: image(),
@@ -383,7 +383,7 @@ async function clickSizeVariant(page, sizeText, index) {
 
 
 function processData(data, url) {
-    const current_price = clean(data.current_price);
+    const price = clean(data.price);
     const original_price = clean(data.original_price);
 
 
@@ -391,8 +391,8 @@ function processData(data, url) {
 
 
     let discount = data.discount || "NA";
-    if (current_price && original_price && !discount.includes('%')) {
-        const cp = Number(current_price);
+    if (price && original_price && !discount.includes('%')) {
+        const cp = Number(price);
         const mp = Number(original_price);
         if (mp > cp) {
             discount = `${Math.round(((mp - cp) / mp) * 100)}% OFF`;
@@ -407,7 +407,7 @@ function processData(data, url) {
         name: cleanProductName(data.name),
         image: data.image || "NA",
         original_price: original_price || "NA",
-        current_price: current_price || "NA",
+        price: price || "NA",
         discount,
         unit: data.unit || "NA",
         in_stock
@@ -454,13 +454,13 @@ async function processSingleProduct(page, url) {
                 const processed = processData(data, url);
                 variants.push(processed);
 
-                console.log(`   ✔️ ${sizeText}: ₹${processed.current_price || 'N/A'} - ${processed.in_stock}`);
+                console.log(`   ✔️ ${sizeText}: ₹${processed.price || 'N/A'} - ${processed.in_stock}`);
 
 
             } catch (sizeErr) {
                 console.log(`   ❌ Size ${j + 1} failed:`, sizeErr.message);
                 variants.push({
-                    name: "NA", image: "NA", original_price: "NA", current_price: "NA",
+                    name: "NA", image: "NA", original_price: "NA", price: "NA",
                     discount: "NA", unit: sizeButtonTexts[j] || `Size ${j + 1}`,
                     in_stock: "Out of Stock"
                 });
@@ -544,7 +544,7 @@ async function scrape() {
     /***************************************************************
      * WRITE OUTPUT
      ***************************************************************/
-    const headers = ["product_id", "name", "image", "original_price", "current_price", "discount", "unit", "in_stock"];
+    const headers = ["product_id", "name", "image", "original_price", "price", "discount", "unit", "in_stock"];
     const rows = [headers.join(",")];
 
 

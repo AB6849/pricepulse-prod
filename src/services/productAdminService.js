@@ -9,10 +9,10 @@ export async function upsertProducts(products, platform, brand) {
     const transformed = products
         .map(product => {
             const parsePrice = (val) => {
-                if (!val || val === 'NA' || val === '') return null;
-                const n = parseFloat(val);
-                return isNaN(n) ? null : n;
-            };
+  if (val === null || val === undefined) return null;
+  const n = Number(String(val).replace(/[^\d.]/g, ''));
+  return Number.isFinite(n) ? n : null;
+};
 
             const parseString = (val) =>
                 !val || val === 'NA' || val === '' ? null : val;
@@ -28,24 +28,25 @@ export async function upsertProducts(products, platform, brand) {
         ? product.name.trim()
         : "NA";
 
+        const parsedPrice = parsePrice(product.price);
+
 return {
-    product_id: product.product_id,
-    url: parseString(product.url),
-    name: safeName, // 🔒 NEVER NULL
-    image: parseString(product.image),
-    price: parsePrice(product.current_price),
-    original_price: parsePrice(product.original_price),
-    discount: parseString(product.discount),
-    unit: parseString(product.unit),
-    in_stock: parseString(product.in_stock),
-    platform,
-    brand,
-    updated_at: new Date().toISOString()
+  product_id: product.product_id,
+  url: parseString(product.url),
+  name: safeName,
+  image: parseString(product.image),
+  ...(parsedPrice !== null ? { price: parsedPrice } : {}), // 👈 only send if valid
+  original_price: parsePrice(product.original_price),
+  discount: parseString(product.discount),
+  unit: parseString(product.unit),
+  in_stock: parseString(product.in_stock),
+  platform,
+  brand,
+  updated_at: new Date().toISOString()
 };
 
         })
-.filter(p => p.name !== null)
-
+.filter(p => p.name !== null);
     if (transformed.length === 0) {
         console.log(`⚠️ No valid products to upsert for ${platform} (${brand})`);
         return [];
@@ -54,7 +55,7 @@ return {
     const { data, error } = await supabaseAdmin
         .from('products')
         .upsert(transformed, {
-            onConflict: 'platform,product_id,unit'
+            onConflict: 'platform,product_id'
         })
         .select();
 
