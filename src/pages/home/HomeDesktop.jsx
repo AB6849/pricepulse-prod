@@ -9,15 +9,9 @@ import feather from 'feather-icons';
 
 export default function HomeDesktop() {
   const { brands, currentBrand, switchBrand, loading } = useAuth();
-  const [selectedBrand, setSelectedBrand] = useState(currentBrand);
+const [selectedBrand, setSelectedBrand] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (currentBrand) {
-      setSelectedBrand(currentBrand);
-    }
-  }, [currentBrand]);
 
   useEffect(() => {
   feather.replace();
@@ -83,15 +77,30 @@ export default function HomeDesktop() {
 
           {brands && brands.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              <div
+  className="
+    grid
+    gap-6
+    mx-auto
+    justify-center
+    justify-items-center
+    grid-cols-[repeat(auto-fit,minmax(240px,max-content))]
+    max-w-5xl
+  "
+>
                 {brands.map((brand) => {
                   const isSelected = selectedBrand?.brand_id === brand.brand_id;
                   const isPepe = brand.brand_slug === 'pepe';
                   return (
                     <div
                       key={brand.brand_id}
-                      className={`brand-card group cursor-pointer rounded-2xl px-6 py-4 bg-white/5 backdrop-blur-lg border border-white/10 hover:bg-white/10 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(102,126,234,0.4)] flex items-center justify-center space-x-4 ${isSelected ? (isPepe ? 'active bg-gradient-to-r from-purple-600 to-indigo-600' : 'active bg-gradient-to-r from-pink-600 to-yellow-600') : ''
-                        }`}
+                      className={`brand-card group cursor-pointer rounded-2xl px-6 py-4
+  w-[260px]
+  bg-white/5 backdrop-blur-lg border border-white/10
+  hover:bg-white/10 transition-all duration-300
+  flex items-center justify-center space-x-4
+  ${isSelected ? 'active' : ''}
+`}
                       onClick={() => handleBrandSelect(brand)}
                     >
                       <div className={`brand-logo w-14 h-14 rounded-xl shadow-lg flex items-center justify-center ${isPepe ? 'bg-gradient-to-tr from-indigo-500 to-purple-600' : 'bg-gradient-to-tr from-pink-500 to-yellow-400'
