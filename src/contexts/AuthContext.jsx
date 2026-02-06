@@ -77,8 +77,25 @@ export function AuthProvider({ children }) {
       setProfile(profileData);
 
       // Load user's brands
-      const { data: brandsData, error: brandsError } = await supabase
-        .rpc('get_user_brands', { user_uuid: userId });
+      let brandsData;
+      let brandsError;
+
+      if (profileData.role === 'super_admin') {
+        // Super admins see all active brands
+        const { data, error } = await supabase
+          .from('brands')
+          .select('*')
+          .eq('is_active', true)
+          .order('brand_name', { ascending: true });
+        brandsData = data;
+        brandsError = error;
+      } else {
+        // Regular users see only assigned brands
+        const { data, error } = await supabase
+          .rpc('get_user_brands', { user_uuid: userId });
+        brandsData = data;
+        brandsError = error;
+      }
 
       if (brandsError) {
         // If function doesn't exist or user has no brands, that's OK
@@ -113,16 +130,16 @@ export function AuthProvider({ children }) {
   }
 
   async function signInWithGoogle() {
-  const redirectTo = `${window.location.origin}/auth/callback`;
+    const redirectTo = `${window.location.origin}/auth/callback`;
 
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo },
-  });
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    });
 
-  if (error) throw error;
-  return data;
-}
+    if (error) throw error;
+    return data;
+  }
 
 
 

@@ -24,17 +24,14 @@ export default function Footer() {
   }, []);
 
   return (
-    <footer className="bg-gray-900/50 backdrop-blur-sm text-white py-10 relative z-10 border-t border-white/10">
-      <div className="container mx-auto px-4 text-center">
-        <div className="flex justify-center items-center space-x-2 mb-4">
-  <img
-    src="/trabenfull.png"
-    alt="PricePulse logo"
-    className="w-90 h-12 object-contain invert"
-  />
-</div>
-        <p className="text-gray-400 mb-2">© 2025 Traben - The Ultimate Price Monitoring Tool</p>
-        <p className="text-sm text-gray-500">Live data from Google Sheets • Updated every 4 hours</p>
+    <footer className="py-4 px-8 relative z-10 border-t border-white/5 bg-white/[0.02]">
+      <div className="flex items-center justify-between gap-6 opacity-70 hover:opacity-100 transition-opacity duration-300">
+        <img
+          src="/trabenfull.png"
+          alt="Traben logo"
+          className="traben-logo h-7 object-contain hover:scale-105 transition-transform duration-500 cursor-pointer"
+        />
+        <p className="text-zinc-400 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap">© 2026 Traben - Track Prices. Win Margins.</p>
       </div>
     </footer>
   );

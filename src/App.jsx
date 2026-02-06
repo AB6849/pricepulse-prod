@@ -1,7 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import Home from './pages/home/Home';
+import Home from './pages/Home';
 import Blinkit from './pages/Blinkit';
+import BlinkitAnalytics from './pages/BlinkitAnalytics';
+import InstamartAnalytics from './pages/InstamartAnalytics';
+import ZeptoAnalytics from './pages/ZeptoAnalytics';
 import Swiggy from './pages/Swiggy';
 import Zepto from './pages/Zepto';
 import Amazon from './pages/Amazon';
@@ -10,6 +13,7 @@ import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
 import AdminUsers from './pages/AdminUsers';
 import AcceptInvite from './pages/AcceptInvite';
+import DashboardLayout from './components/DashboardLayout';
 
 // Protected Route Component
 function ProtectedRoute({ children, requireAdmin = false }) {
@@ -17,9 +21,7 @@ function ProtectedRoute({ children, requireAdmin = false }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{
-        background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%)'
-      }}>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-main)]">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-white">Loading...</p>
@@ -39,68 +41,34 @@ function ProtectedRoute({ children, requireAdmin = false }) {
   return children;
 }
 
+function DashboardRoutes() {
+  return (
+    <ProtectedRoute>
+      <DashboardLayout>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/blinkit" element={<Blinkit />} />
+          <Route path="/blinkit/analytics" element={<BlinkitAnalytics />} />
+          <Route path="/swiggy" element={<Swiggy />} />
+          <Route path="/swiggy/analytics" element={<InstamartAnalytics />} />
+          <Route path="/zepto" element={<Zepto />} />
+          <Route path="/zepto/analytics" element={<ZeptoAnalytics />} />
+          <Route path="/amazon" element={<Amazon />} />
+          <Route path="/benchmarks" element={<Benchmarks />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
+        </Routes>
+      </DashboardLayout>
+    </ProtectedRoute>
+  );
+}
+
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/invite/:token" element={<AcceptInvite />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Home />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/blinkit"
-        element={
-          <ProtectedRoute>
-            <Blinkit />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/swiggy"
-        element={
-          <ProtectedRoute>
-            <Swiggy />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/zepto"
-        element={
-          <ProtectedRoute>
-            <Zepto />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/amazon"
-        element={
-          <ProtectedRoute>
-            <Amazon />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/benchmarks"
-        element={
-          <ProtectedRoute requireAdmin={true}>
-            <Benchmarks />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/users"
-        element={
-          <ProtectedRoute requireAdmin={true}>
-            <AdminUsers />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="*" element={<DashboardRoutes />} />
     </Routes>
   );
 }

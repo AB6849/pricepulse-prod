@@ -1,16 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
 import { isOutOfStock } from '../utils/csvParser';
 import { getProducts, getBenchmarks } from '../services/productService';
 import { getPricingCalendar } from '../services/pricingCalendarService';
+import PriceHistoryChart from '../components/PriceHistoryChart';
+import feather from 'feather-icons';
 
 function toTitleCase(str) {
-  if (!str) return str;
-  return str.replace(/\w\S*/g, word =>
-    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  );
+    if (!str) return str;
+    return str.replace(/\w\S*/g, word =>
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    );
 }
 
 export default function Blinkit() {
@@ -29,73 +30,75 @@ export default function Blinkit() {
     const hasHydratedFromCache = useRef(false);
     const hasInitialized = useRef(false);
     const [pricingMode, setPricingMode] = useState('BAU');
-
-      useEffect(() => {
-    sessionStorage.removeItem('blinkit-cache');
-    sessionStorage.removeItem('blinkit-scroll');
-    hasInitialized.current = false;
-    hasHydratedFromCache.current = false;
-  }, [currentBrand?.brand_slug]);
-
-    useEffect(() => {
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === 'hidden') {
-      sessionStorage.setItem('blinkit-scroll', window.scrollY);
-    }
-  };
-
-  window.addEventListener('visibilitychange', handleVisibilityChange);
-
-  return () => {
-    window.removeEventListener('visibilitychange', handleVisibilityChange);
-  };
-}, []);
-
-useEffect(() => {
-  const cached = sessionStorage.getItem('blinkit-cache');
-
-  if (cached) {
-    const parsed = JSON.parse(cached);
-
-    setProducts(parsed.products || []);
-    setBenchmarks(parsed.benchmarks || {});
-    setPricingMode(parsed.pricingMode || 'BAU');
-    setDisplayLimit(parsed.displayLimit || 50);
-    setLoading(false);
-
-    hasHydratedFromCache.current = true;
-    hasInitialized.current = true;
-  }
-}, []);
-
-
-useEffect(() => {
-if (!loading && products.length && hasHydratedFromCache.current) {
-    const y = sessionStorage.getItem('blinkit-scroll');
-    if (y) {
-      requestAnimationFrame(() => {
-        window.scrollTo(0, Number(y));
-      });
-    }
-  }
-}, [loading, products.length]);
+    const [historyProduct, setHistoryProduct] = useState(null);
 
 
     useEffect(() => {
-  if (authLoading) return;
-  if (hasInitialized.current) return;
+        sessionStorage.removeItem('blinkit-cache');
+        sessionStorage.removeItem('blinkit-scroll');
+        hasInitialized.current = false;
+        hasHydratedFromCache.current = false;
+    }, [currentBrand?.brand_slug]);
 
-  if (!currentBrand && brands && brands.length === 0) {
-    setError('No brands assigned. Contact admin to get access.');
-    setLoading(false);
-    hasInitialized.current = true;
-    return;
-  }
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                sessionStorage.setItem('blinkit-scroll', window.scrollY);
+            }
+        };
 
-  fetchData().finally(() => {
-    hasInitialized.current = true;
-  });
-}, [authLoading, currentBrand, brands]);
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
+    useEffect(() => {
+        const cached = sessionStorage.getItem('blinkit-cache');
+
+        if (cached) {
+            const parsed = JSON.parse(cached);
+
+            setProducts(parsed.products || []);
+            setBenchmarks(parsed.benchmarks || {});
+            setPricingMode(parsed.pricingMode || 'BAU');
+            setDisplayLimit(parsed.displayLimit || 50);
+            setLoading(false);
+
+            hasHydratedFromCache.current = true;
+            hasInitialized.current = true;
+        }
+    }, []);
+
+
+    useEffect(() => {
+        if (!loading && products.length && hasHydratedFromCache.current) {
+            const y = sessionStorage.getItem('blinkit-scroll');
+            if (y) {
+                requestAnimationFrame(() => {
+                    window.scrollTo(0, Number(y));
+                });
+            }
+        }
+    }, [loading, products.length]);
+
+
+    useEffect(() => {
+        if (authLoading) return;
+        if (hasInitialized.current) return;
+
+        if (!currentBrand && brands && brands.length === 0) {
+            setError('No brands assigned. Contact admin to get access.');
+            setLoading(false);
+            hasInitialized.current = true;
+            return;
+        }
+
+        fetchData().finally(() => {
+            hasInitialized.current = true;
+        });
+    }, [authLoading, currentBrand, brands]);
 
     // Reset display limit when filters change
     useEffect(() => {
@@ -139,18 +142,18 @@ if (!loading && products.length && hasHydratedFromCache.current) {
     }
 
     useEffect(() => {
-  if (!products.length || !hasInitialized.current) return;
+        if (!products.length || !hasInitialized.current) return;
 
-  sessionStorage.setItem(
-    'blinkit-cache',
-    JSON.stringify({
-      products,
-      benchmarks,
-      pricingMode,
-      displayLimit
-    })
-  );
-}, [products, benchmarks, pricingMode, displayLimit]);
+        sessionStorage.setItem(
+            'blinkit-cache',
+            JSON.stringify({
+                products,
+                benchmarks,
+                pricingMode,
+                displayLimit
+            })
+        );
+    }, [products, benchmarks, pricingMode, displayLimit]);
 
 
     const { filteredProducts, displayedProducts } = useMemo(() => {
@@ -166,24 +169,24 @@ if (!loading && products.length && hasHydratedFromCache.current) {
         } else if (filterBy === 'oos') {
             filtered = filtered.filter(p => isOutOfStock(p.in_stock));
         } else if (filterBy === 'above' || filterBy === 'below' || filterBy === 'at') {
-  filtered = filtered.filter(p => {
-    const bench = benchmarks?.[p.product_id];
-    if (!bench || !p.price) return false;
+            filtered = filtered.filter(p => {
+                const bench = benchmarks?.[p.product_id];
+                if (!bench || !p.price) return false;
 
-    const reference =
-      pricingMode === 'EVENT' ? bench.event : bench.bau;
+                const reference =
+                    pricingMode === 'EVENT' ? bench.event : bench.bau;
 
-    if (reference === null || reference === undefined) return false;
+                if (reference === null || reference === undefined) return false;
 
-    const diff = p.price - reference;
+                const diff = p.price - reference;
 
-    if (filterBy === 'above') return diff > 1;
-    if (filterBy === 'below') return diff < -1;
-    if (filterBy === 'at') return Math.abs(diff) <= 1;
+                if (filterBy === 'above') return diff > 1;
+                if (filterBy === 'below') return diff < -1;
+                if (filterBy === 'at') return Math.abs(diff) <= 1;
 
-    return true;
-  });
-}
+                return true;
+            });
+        }
 
         const sorted = [...filtered].sort((a, b) => {
             if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
@@ -215,6 +218,10 @@ if (!loading && products.length && hasHydratedFromCache.current) {
             displayedProducts: sorted.slice(0, displayLimit)
         };
     }, [products, searchQuery, filterBy, sortBy, benchmarks, pricingMode, displayLimit]);
+
+    useEffect(() => {
+        feather.replace();
+    }, [displayedProducts, loading, historyProduct]);
 
     const stats = useMemo(() => ({
         total: products.length,
@@ -276,213 +283,221 @@ if (!loading && products.length && hasHydratedFromCache.current) {
 
     if (authLoading) {
         return (
-            <div className="min-h-screen">
-                <Header />
-                <main className="container mx-auto px-4 py-8">
-                    <div className="text-center py-12">
-                        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-gray-400">Loading...</p>
-                    </div>
-                </main>
-                <Footer />
+            <div className="flex-1 flex items-center justify-center">
+                <div className="glass-card p-12 flex flex-col items-center animate-reveal">
+                    <div className="w-12 h-12 border-2 border-white/20 border-t-indigo-500 rounded-full animate-spin mb-4" />
+                    <p className="text-zinc-400 font-medium tracking-wide uppercase text-[10px]">Syncing Data...</p>
+                </div>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="min-h-screen">
-                <Header />
-                <main className="container mx-auto px-4 py-8">
-                    <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-6 py-4 rounded-lg text-center">
-                        <p className="text-lg font-semibold mb-2">{error}</p>
-                        <p className="text-sm">Please contact your administrator to get brand access.</p>
+            <div className="flex-1 flex items-center justify-center p-6">
+                <div className="glass-card p-10 flex flex-col items-center text-center animate-reveal max-w-md border-red-500/20">
+                    <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
+                        <i data-feather="alert-circle" className="w-8 h-8 text-red-400"></i>
                     </div>
-                </main>
-                <Footer />
+                    <h2 className="text-xl font-bold text-white mb-2 tracking-tight">{error}</h2>
+                    <p className="text-zinc-500 text-sm font-medium mb-8">Please contact your administrator to get brand access.</p>
+                </div>
             </div>
         );
     }
 
     return (
-<div className="min-h-screen">
-            <Header />
-            <main className="container mx-auto px-4 py-6 max-w-7xl">
-                {/* Compact Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <img src="/Blinkit-yellow-rounded.svg" alt="Blinkit" className="w-10 h-10" />
-                        <div>
-                            <h1 className="text-2xl font-bold text-white">Blinkit</h1>
-                            {currentBrand && <p className="text-xs text-gray-400">{currentBrand.brand_name}</p>}
-                        </div>
+        <div className="container mx-auto px-10 pt-[56px] pb-8 flex-1 flex flex-col" key="blinkit-v1">
+            {/* Compact Header */}
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-10 overflow-hidden">
+                <div className="flex items-center gap-5">
+                    <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center p-3 shadow-xl shadow-black/20">
+                        <img src="/Blinkit-yellow-rounded.svg" alt="Blinkit" className="w-full h-full object-contain" />
                     </div>
-
-                    <div className="flex gap-2 text-xs items-center">
-                        <div className="text-xs px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-                            {pricingMode} DAY
-                        </div>
-
-                        <div className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
-                            <span className="text-gray-400">Total:</span>
-                            <span className="text-white font-semibold ml-1">{stats.total}</span>
-                        </div>
-                        <div className="bg-green-500/10 px-3 py-1.5 rounded-lg border border-green-500/30">
-                            <span className="text-green-400">{stats.inStock}</span>
-                        </div>
-                        <div className="bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/30">
-                            <span className="text-red-400">{stats.outOfStock}</span>
-                        </div>
-                    </div>
-
-                </div>
-
-                {/* Compact Controls */}
-                <div className="bg-white/5 backdrop-blur-lg rounded-xl p-3 mb-6 border border-white/10">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                        <select
-                            className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value)}
-                        >
-                            <option value="name">Name</option>
-                            <option value="price">Price ↑</option>
-                            <option value="price-desc">Price ↓</option>
-                            <option value="diff">Diff ↑</option>
-                            <option value="diff-desc">Diff ↓</option>
-                        </select>
-                        <select
-                            className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            value={filterBy}
-                            onChange={(e) => setFilterBy(e.target.value)}
-                        >
-                            <option value="all">All</option>
-                            <option value="instock">In Stock</option>
-                            <option value="oos">Out of Stock</option>
-                            <option value="above">Above Bench</option>
-                            <option value="below">Below Bench</option>
-                            <option value="at">At Bench</option>
-                        </select>
+                    <div>
+                        <h1 className="text-3xl font-medium text-white tracking-tight">Blinkit Tracking</h1>
+                        {currentBrand && <p className="text-zinc-500 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">{currentBrand.brand_name}</p>}
                     </div>
                 </div>
 
-                {/* Products Grid */}
+                <div className="flex flex-wrap gap-3">
+                    <div className="glass-card px-4 py-2 flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)] animate-pulse" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">{pricingMode} DAY</span>
+                    </div>
+
+                    <div className="glass-card px-4 py-2 flex items-center gap-4">
+                        <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Total SKU</span>
+                            <span className="text-sm font-bold text-white">{stats.total}</span>
+                        </div>
+                        <div className="w-[1px] h-6 bg-white/5" />
+                        <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-green-500 uppercase tracking-widest">In Stock</span>
+                            <span className="text-sm font-bold text-green-400">{stats.inStock}</span>
+                        </div>
+                        <div className="w-[1px] h-6 bg-white/5" />
+                        <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-red-500 uppercase tracking-widest">OOS</span>
+                            <span className="text-sm font-bold text-red-400">{stats.outOfStock}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Filters Header */}
+            <header className="glass-card mb-10 p-2 flex flex-col md:flex-row gap-4 items-center" style={{ animationDelay: '0.2s' }}>
+                <div className="flex-1 w-full relative group">
+                    <i data-feather="search" className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-hover:text-indigo-400 transition-colors"></i>
+                    <input
+                        type="text"
+                        placeholder="SEARCH SKU..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-white/5 border border-transparent focus:border-indigo-500/30 rounded-2xl py-4 pl-14 pr-6 text-[10px] font-black uppercase tracking-widest text-white placeholder:text-zinc-600 transition-all outline-none"
+                    />
+                </div>
+
+                <div className="flex gap-2 w-full md:w-auto">
+                    <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="flex-1 md:w-64 bg-white/5 border border-transparent focus:border-indigo-500/30 rounded-2xl py-4 px-6 text-[10px] font-black uppercase tracking-widest text-white outline-none cursor-pointer appearance-none transition-all"
+                    >
+                        <option value="name">SORT BY NAME</option>
+                        <option value="price">PRICE LOW TO HIGH</option>
+                        <option value="price-desc">PRICE HIGH TO LOW</option>
+                        <option value="diff">BENCHMARK DIFF ↑</option>
+                        <option value="diff-desc">BENCHMARK DIFF ↓</option>
+                    </select>
+
+                    <select
+                        value={filterBy}
+                        onChange={(e) => setFilterBy(e.target.value)}
+                        className="flex-1 md:w-64 bg-white/5 border border-transparent focus:border-indigo-500/30 rounded-2xl py-4 px-6 text-[10px] font-black uppercase tracking-widest text-white outline-none cursor-pointer appearance-none transition-all"
+                    >
+                        <option value="all">ALL PRODUCTS</option>
+                        <option value="instock">IN STOCK ONLY</option>
+                        <option value="oos">OUT OF STOCK</option>
+                        <option value="above">ABOVE BENCHMARK</option>
+                        <option value="below">BELOW BENCHMARK</option>
+                        <option value="at">MATCHING BENCHMARK</option>
+                    </select>
+                </div>
+            </header>
+
+            {/* Products Grid */}
+            <div className="flex-1">
                 {loading ? (
-                    <div className="text-center py-20">
-                        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-gray-400">Loading...</p>
+                    <div className="flex flex-col items-center justify-center py-24">
+                        <div className="w-10 h-10 border-2 border-white/10 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
+                        <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Crawling Data...</p>
                     </div>
                 ) : displayedProducts.length === 0 ? (
-                    <div className="text-center py-20">
-                        <p className="text-gray-400 text-lg">No products found</p>
+                    <div className="flex flex-col items-center justify-center py-24 text-center glass-card">
+                        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-6">
+                            <i data-feather="package" className="w-8 h-8 text-zinc-600"></i>
+                        </div>
+                        <h3 className="text-white font-bold mb-2 uppercase tracking-widest text-xs">No products found</h3>
+                        <p className="text-zinc-500 text-[10px] font-medium max-w-xs mx-auto mb-6">Adjust your filters or try a different search term to find what you're looking for.</p>
                         {searchQuery && (
-                            <button onClick={() => setSearchQuery('')} className="mt-4 text-indigo-400">Clear search</button>
+                            <button onClick={() => setSearchQuery('')} className="text-indigo-400 font-black uppercase tracking-widest text-[10px] hover:text-indigo-300 transition-colors">Clear Search</button>
                         )}
                     </div>
                 ) : (
                     <>
-                        <div className="flex justify-between items-center mb-3">
-                            <p className="text-gray-400 text-xs">Showing {displayedProducts.length} of {stats.displayed} products</p>
+                        <div className="flex justify-between items-center mb-6 px-1">
+                            <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em]">SKU Catalog / <span className="text-zinc-300">{displayedProducts.length} results</span></p>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                            {displayedProducts.map((product, idx) => {
-                                const benchmark =
-                                    benchmarks?.[product.product_id];
-
-                                const referencePrice =
-                                    pricingMode === 'EVENT'
-                                        ? benchmark?.event
-                                        : benchmark?.bau;
-
-                                const hasBenchmark =
-                                    referencePrice !== null &&
-                                    referencePrice !== undefined;
-
-                                const priceDiff =
-                                    hasBenchmark && product.price
-                                        ? product.price - referencePrice
-                                        : null;
-
+                        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                            {displayedProducts.map((product) => {
+                                const benchmark = benchmarks?.[product.product_id];
+                                const referencePrice = pricingMode === 'EVENT' ? benchmark?.event : benchmark?.bau;
+                                const hasBenchmark = referencePrice !== null && referencePrice !== undefined;
+                                const priceDiff = hasBenchmark && product.price ? product.price - referencePrice : null;
                                 const isOOS = isOutOfStock(product.in_stock);
-                                let statusLabel = 'Benchmark Missing';
-                                let statusClass = 'bg-gray-500/20 text-gray-400 border border-gray-500/30';
+
+                                let statusLabel = 'BENCHMARK MISSING';
+                                let statusClass = 'text-zinc-500 border-white/5 bg-white/[0.02]';
 
                                 if (hasBenchmark && priceDiff !== null) {
                                     if (Math.abs(priceDiff) < 1) {
-                                        statusLabel = `Correct (${pricingMode})`;
-                                        statusClass = 'bg-green-500/20 text-green-400 border border-green-500/30';
+                                        statusLabel = `CORRECT (${pricingMode})`;
+                                        statusClass = 'text-green-400 border-green-500/20 bg-green-500/5 shadow-[0_0_15px_rgba(34,197,94,0.1)]';
                                     } else if (priceDiff > 0) {
-                                        statusLabel = `Above ${pricingMode} (+₹${priceDiff.toFixed(0)})`;
-                                        statusClass = 'bg-red-500/20 text-red-400 border border-red-500/30';
+                                        statusLabel = `ABOVE BENCH (+₹${priceDiff.toFixed(0)})`;
+                                        statusClass = 'text-red-400 border-red-500/20 bg-red-500/5';
                                     } else {
-                                        statusLabel = `Below ${pricingMode} (-₹${Math.abs(priceDiff).toFixed(0)})`;
-                                        statusClass = 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30';
+                                        statusLabel = `BELOW BENCH (-₹${Math.abs(priceDiff).toFixed(0)})`;
+                                        statusClass = 'text-yellow-400 border-yellow-500/20 bg-yellow-500/5';
                                     }
                                 }
 
                                 return (
                                     <a
-  href={product.url}
-  target="_blank"
-  rel="noopener noreferrer"
-  onClick={() => {
-    sessionStorage.setItem('blinkit-scroll', window.scrollY);
-  }}
-  className="block group"
->
-
-                                        <div
-                                            className="bg-white/5 rounded-lg border border-white/10 overflow-hidden hover:border-indigo-500/50 transition-all duration-150 hover:shadow-lg hover:shadow-indigo-500/20"
-                                        >
-                                            <div className="relative h-32 bg-white/5">
+                                        key={product.product_id}
+                                        href={product.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={() => sessionStorage.setItem('blinkit-scroll', window.scrollY)}
+                                        className="group"
+                                    >
+                                        <div className="glass-card product-card flex flex-col h-full hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/5 overflow-hidden relative">
+                                            <div className="aspect-square bg-white/[0.02] p-6 relative flex items-center justify-center overflow-hidden">
                                                 <img
                                                     src={product.image}
                                                     alt={product.name}
                                                     loading="lazy"
-                                                    className="w-full h-full object-contain p-2"
+                                                    decoding="async"
+                                                    className="w-full h-full object-contain product-image-blend"
                                                 />
                                                 {isOOS && (
-                                                    <div className="absolute top-1 right-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
+                                                    <div className="absolute top-3 right-3 bg-red-500 text-white text-[9px] px-2 py-1 rounded-md font-black uppercase tracking-widest shadow-lg shadow-black/40">
                                                         OOS
                                                     </div>
                                                 )}
                                                 {hasBenchmark && priceDiff !== null && Math.abs(priceDiff) > 0.01 && (
-                                                    <div className={`absolute top-1 left-1 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${priceDiff < 0 ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                                                        }`}>
+                                                    <div className={`absolute top-3 left-3 text-[9px] px-2 py-1 rounded-md font-black uppercase tracking-widest shadow-lg ${priceDiff < 0 ? 'bg-green-500' : 'bg-red-500'} text-white`}>
                                                         {priceDiff < 0 ? '-' : '+'}{Math.abs(priceDiff).toFixed(0)}
                                                     </div>
                                                 )}
                                             </div>
 
-                                            <div className="p-2">
-                                                <h3 className="text-white text-xs font-medium mb-1 line-clamp-2" style={{ minHeight: '2rem' }}>
-  {toTitleCase(product.name)}
-</h3>
+                                            <div className="p-5 flex flex-col flex-1">
+                                                <h3 className="text-white text-xs font-bold mb-1 line-clamp-2 leading-relaxed tracking-tight group-hover:text-indigo-400 transition-colors" style={{ minHeight: '2.4rem' }}>
+                                                    {toTitleCase(product.name)}
+                                                </h3>
 
-                                                {product.unit && (
-                                                    <p className="text-gray-400 text-[10px] mb-2">{product.unit}</p>
-                                                )}
+                                                <div className="flex items-center gap-2 mb-4 opacity-50">
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                                                        {product.unit || 'Standard Pack'}
+                                                    </span>
+                                                </div>
 
-                                                <div className="space-y-1.5">
-                                                    {/* Price + MRP */}
-                                                    <div className="flex items-center gap-2">
-                                                        <p className="text-green-400 text-lg font-bold">₹{product.price}</p>
+                                                <div className="mt-auto pt-4 border-t border-white/5 flex flex-col gap-4">
+                                                    <div className="flex items-end justify-between">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-0.5">Price</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-xl font-black text-white leading-none">₹{product.price}</p>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        setHistoryProduct(product);
+                                                                    }}
+                                                                    className="p-2 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-xl transition-all group/history border border-indigo-500/20"
+                                                                >
+                                                                    <i data-feather="trending-up" className="w-4 h-4 text-indigo-400 group-hover/history:scale-110 transition-transform"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                         {product.original_price && product.original_price !== product.price && (
-                                                            <p className="text-gray-400 text-xs line-through">MRP ₹{product.original_price}</p>
+                                                            <p className="text-[10px] text-zinc-500 line-through font-bold">₹{product.original_price}</p>
                                                         )}
                                                     </div>
 
-                                                    {/* vs Benchmark Status - Bottom Badge */}
-                                                    <div
-                                                        className={`text-center text-[10px] px-2 py-1.5 rounded font-semibold border ${statusClass}`}
-                                                    >
+                                                    <div className={`text-center text-[9px] px-3 py-2 rounded-lg font-black uppercase tracking-widest border transition-all ${statusClass}`}>
                                                         {statusLabel}
                                                     </div>
                                                 </div>
@@ -495,25 +510,37 @@ if (!loading && products.length && hasHydratedFromCache.current) {
 
                         {/* Sentinel element for infinite scroll */}
                         {displayedProducts.length < stats.displayed && (
-                            <div
-                                ref={observerTarget}
-                                className="py-12 flex justify-center items-center"
-                                style={{ minHeight: '150px' }}
-                            >
+                            <div ref={observerTarget} className="py-20 flex flex-col justify-center items-center">
                                 {isLoadingMore ? (
-                                    <div className="flex items-center gap-2 text-gray-400">
-                                        <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                        <span className="text-sm">Loading more products...</span>
+                                    <div className="flex flex-col items-center gap-4">
+                                        <div className="w-10 h-10 border-2 border-white/10 border-t-indigo-500 rounded-full animate-spin"></div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Loading SKU Batch...</span>
                                     </div>
                                 ) : (
-                                    <div className="h-20 w-full" aria-hidden="true"></div>
+                                    <div className="h-10 w-full" aria-hidden="true"></div>
                                 )}
                             </div>
                         )}
                     </>
                 )}
-            </main>
-            <Footer />
+            </div>
+            {/* Price History Modal - Portaled to Body */}
+            {historyProduct && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setHistoryProduct(null)}></div>
+                    <div className="glass-card glass-panel w-full max-w-lg p-8 relative animate-reveal-up overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+                        <PriceHistoryChart
+                            productId={historyProduct.product_id}
+                            platform="blinkit"
+                            brand={brandSlug}
+                            currentPrice={historyProduct.price}
+                            onClose={() => setHistoryProduct(null)}
+                        />
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 }

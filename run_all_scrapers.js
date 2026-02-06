@@ -19,7 +19,7 @@ const SCRAPERS = [
   { name: 'petcrux_blinkit_sheets.js', cmd: `${NODE_PATH} petcrux_blinkit_sheets.js` },
   { name: 'petcrux_instamart_sheets.js', cmd: `${NODE_PATH} petcrux_instamart_sheets.js` },
   { name: 'petcrux_zepto_sheets.js', cmd: `${NODE_PATH} petcrux_zepto_sheets.js` },
-  { name: 'petcrux_amazon_sheets.js', cmd: `${NODE_PATH} petcrux_amazon_sheets.js` },
+//   { name: 'petcrux_amazon_sheets.js', cmd: `${NODE_PATH} petcrux_amazon_sheets.js` },
 ];
 
 // ⭐ LOG FILE

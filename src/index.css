@@ -3,26 +3,122 @@
 @tailwind utilities;
 
 :root {
-  --glow-purple: 0 0 20px rgba(102, 126, 234, 0.6);
-  --glow-indigo: 0 0 20px rgba(99, 102, 241, 0.4);
+  /* iOS 26 Glass Morphism Tokens (Dark) */
+  --bg-main: #05050a;
+  --bg-gradient: radial-gradient(circle at 50% 0%, #1a1a2e 0%, #05050a 100%);
+  --text-main: #ffffff;
+  --text-muted: #94a3b8;
+
+  /* Optimized Blur and Shadows for Performance */
+  --glass-bg: rgba(255, 255, 255, 0.04);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-edge: rgba(255, 255, 255, 0.1);
+  --glass-blur: blur(12px);
+  --glass-shimmer: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 40%, transparent 60%, rgba(255, 255, 255, 0.02) 100%);
+
+  --card-shadow:
+    0 4px 12px -2px rgba(0, 0, 0, 0.3),
+    0 1px 1px 0 rgba(255, 255, 255, 0.05);
+
+  --accent-glow: 0 0 30px rgba(99, 102, 241, 0.15);
+  --traben-logo-filter: invert(1) brightness(2);
 }
 
+/* Base resets */
 * {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  box-sizing: border-box;
 }
 
+/* Specific transitions to avoid global layout thrashing */
+.btn-refresh,
+.cta-button,
+.sidebar-item,
+.nav-btn {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.product-card {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+
 body {
-  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+  background: var(--bg-main);
+  color: var(--text-main);
   overflow-x: hidden;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   min-height: 100vh;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: var(--bg-gradient);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  background-image: var(--glass-shimmer);
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-edge);
+  border-left-color: var(--glass-edge);
+  border-radius: 28px;
+  box-shadow: var(--card-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Glass card variant that allows dropdowns to overflow */
+.glass-card.overflow-visible {
+  overflow: visible !important;
+}
+
+/* Reserved for static, non-scrolling UI only */
+.glass-panel {
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+/* The "Inner Glow" Highlight */
+.glass-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--glass-edge), transparent 50%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.product-image-blend {
+  /* Simplified for performance */
+  transition: opacity 0.3s ease;
+}
+
+.glass-input {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  transition: all 0.3s ease;
+}
+
+.glass-input:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
 }
 
 .gradient-bg {
@@ -31,9 +127,8 @@ body {
 
 .card-glow {
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
 }
 
 .card-glow:hover {
@@ -113,6 +208,51 @@ body {
   animation-duration: 1.2s;
 }
 
+.logo-white {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+.traben-logo {
+  filter: var(--traben-logo-filter) drop-shadow(0 0 12px rgba(255, 255, 255, 0.2));
+  -webkit-filter: var(--traben-logo-filter) drop-shadow(0 0 12px rgba(255, 255, 255, 0.2));
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+@keyframes reveal-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.98);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes reveal-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-reveal {
+  animation: reveal-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-reveal-up {
+  animation: reveal-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+
 @keyframes breatheGlow {
 
   0%,
@@ -131,44 +271,6 @@ body {
   filter: brightness(0) invert(1);
 }
 
-.particles {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: -1;
-}
-
-.particle {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  background: rgba(102, 126, 234, 0.6);
-  border-radius: 50%;
-  animation: floatParticle 20s linear infinite;
-}
-
-@keyframes floatParticle {
-  0% {
-    transform: translateY(100vh) rotate(0deg);
-    opacity: 0;
-  }
-
-  10% {
-    opacity: 1;
-  }
-
-  90% {
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateY(-100px) rotate(360deg);
-    opacity: 0;
-  }
-}
 
 .hero-text {
   animation: slideInUp 1s ease-out;
@@ -209,14 +311,12 @@ body {
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
+  background: var(--glass-bg);
 }
 
 .table-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
 }
 
 .input-glow:focus {
@@ -276,6 +376,36 @@ body {
   box-shadow: var(--glow-indigo);
 }
 
+@keyframes reveal {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-reveal {
+  animation: reveal 0.4s ease-out forwards;
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-reveal-up {
+  animation: reveal-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 @keyframes modalEnter {
   from {
     opacity: 0;
@@ -309,12 +439,12 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* GPU acceleration for cards - only when needed */
-.card {
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+/* GPU acceleration for containers only to prevent layer explosion */
+.card,
+.glass-card {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  contain: layout style;
 }
 
 /* Optimize image rendering */
@@ -326,15 +456,16 @@ img {
 
 /* Performance optimizations */
 .grid {
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  will-change: auto;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  will-change: transform;
+  content-visibility: auto;
+  contain-intrinsic-size: 1000px;
 }
 
-/* Smooth transitions for cards */
+/* Smooth rendering for images */
 img {
-  will-change: auto;
-  transform: translateZ(0);
+  transform: translate3d(0, 0, 0);
 }
 
 /* Line clamp utility */
@@ -384,6 +515,7 @@ img {
 .animate-check {
   animation: checkPop 0.35s ease-out forwards;
 }
+
 .traben-glow {
   position: relative;
   z-index: 1;
@@ -393,16 +525,45 @@ img {
   content: "";
   position: absolute;
   inset: -10px;
-  background: radial-gradient(
-    circle,
-    rgba(255,255,255,0.55) 0%,
-    rgba(255,255,255,0.25) 30%,
-    rgba(255,255,255,0.05) 55%,
-    transparent 70%
-  );
+  background: radial-gradient(circle,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.25) 30%,
+      rgba(255, 255, 255, 0.05) 55%,
+      transparent 70%);
   opacity: 0.45;
   filter: blur(12px);
   z-index: -1;
   animation: trabenGlowPulse 4s ease-in-out infinite;
   pointer-events: none;
+}
+
+/* TrabenLoader Animations */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes float-gentle {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+.animate-float {
+  animation: float-gentle 2s ease-in-out infinite;
 }

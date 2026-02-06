@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabaseAdmin.js';
-import { savePriceHistory, detectPriceChanges } from './priceChangeService.js';
+import { savePriceHistory, detectPriceChanges, saveDailyPriceHistory } from './priceChangeService.js';
 import { notifyPriceChanges } from './emailService.js';
 
 /**
@@ -9,10 +9,10 @@ export async function upsertProducts(products, platform, brand) {
     const transformed = products
         .map(product => {
             const parsePrice = (val) => {
-  if (val === null || val === undefined) return null;
-  const n = Number(String(val).replace(/[^\d.]/g, ''));
-  return Number.isFinite(n) ? n : null;
-};
+                if (val === null || val === undefined) return null;
+                const n = Number(String(val).replace(/[^\d.]/g, ''));
+                return Number.isFinite(n) ? n : null;
+            };
 
             const parseString = (val) =>
                 !val || val === 'NA' || val === '' ? null : val;
@@ -24,29 +24,29 @@ export async function upsertProducts(products, platform, brand) {
                 product.in_stock.toLowerCase().includes('out of stock');
 
             const safeName =
-    typeof product.name === "string" && product.name.trim().length > 0
-        ? product.name.trim()
-        : "NA";
+                typeof product.name === "string" && product.name.trim().length > 0
+                    ? product.name.trim()
+                    : "NA";
 
-        const parsedPrice = parsePrice(product.price);
+            const parsedPrice = parsePrice(product.price);
 
-return {
-  product_id: product.product_id,
-  url: parseString(product.url),
-  name: safeName,
-  image: parseString(product.image),
-  ...(parsedPrice !== null ? { price: parsedPrice } : {}), // 👈 only send if valid
-  original_price: parsePrice(product.original_price),
-  discount: parseString(product.discount),
-  unit: parseString(product.unit),
-  in_stock: parseString(product.in_stock),
-  platform,
-  brand,
-  updated_at: new Date().toISOString()
-};
+            return {
+                product_id: product.product_id,
+                url: parseString(product.url),
+                name: safeName,
+                image: parseString(product.image),
+                ...(parsedPrice !== null ? { price: parsedPrice } : {}), // 👈 only send if valid
+                original_price: parsePrice(product.original_price),
+                discount: parseString(product.discount),
+                unit: parseString(product.unit),
+                in_stock: parseString(product.in_stock),
+                platform,
+                brand,
+                updated_at: new Date().toISOString()
+            };
 
         })
-.filter(p => p.name !== null);
+        .filter(p => p.name !== null);
     if (transformed.length === 0) {
         console.log(`⚠️ No valid products to upsert for ${platform} (${brand})`);
         return [];
@@ -69,6 +69,7 @@ return {
     // ---- Price history + alerts (non-blocking) ----
     try {
         await savePriceHistory(products, platform, brand);
+        await saveDailyPriceHistory(products, platform, brand);
         const changes = await detectPriceChanges(platform, brand);
 
         if (changes.length > 0) {

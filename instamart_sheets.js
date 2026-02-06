@@ -32,7 +32,7 @@ async function writeToSupabase(scrapedProducts) {
 
 async function scrapeCataloguePage(catalogueUrl) {
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: false,
     defaultViewport: { width: 1440, height: 1200 },
     args: [
       "--disable-blink-features=AutomationControlled",
@@ -198,9 +198,9 @@ async function scrapeCataloguePage(catalogueUrl) {
   fs.writeFileSync(
     "instamart_pepe_jeans_final.csv",
     [
-      ["name","unit","current_price","original_price","discount","in_stock","image"].join(","),
+      ["name", "unit", "current_price", "original_price", "discount", "in_stock", "image"].join(","),
       ...results.map(p =>
-        ["name","unit","current_price","original_price","discount","in_stock","image"]
+        ["name", "unit", "current_price", "original_price", "discount", "in_stock", "image"]
           .map(h => `"${(p[h] || "").replace(/"/g, '""')}"`)
           .join(",")
       )

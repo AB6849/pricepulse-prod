@@ -33,7 +33,7 @@ export async function savePriceHistory(products, platform, brand) {
       .map(product => {
         const normalizedName = product.name.toLowerCase().trim();
         const existingProduct = productMap.get(normalizedName);
-        
+
         if (!existingProduct) {
           return null; // Product not found in database, skip
         }
@@ -108,13 +108,13 @@ export async function detectPriceChanges(platform, brand) {
 
       // Sort by recorded_at descending
       records.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
-      
+
       const latest = records[0];
       const previous = records[1];
 
       // Check if price changed
       const priceChange = latest.price - previous.price;
-      const priceChangePercent = previous.price > 0 
+      const priceChangePercent = previous.price > 0
         ? ((priceChange / previous.price) * 100).toFixed(2)
         : 0;
 
@@ -165,3 +165,55 @@ export async function getAllPriceChanges(brand = 'pepe') {
 }
 
 
+/**
+ * Save current prices to dedicated daily price history table
+ * This table stores one record per product per day
+ */
+export async function saveDailyPriceHistory(products, platform, brand) {
+  if (!products || products.length === 0) {
+    return;
+  }
+
+  try {
+    // Get date in Asia/Kolkata timezone (YYYY-MM-DD)
+    const todayIST = new Date().toLocaleDateString('en-CA', {
+      timeZone: 'Asia/Kolkata'
+    });
+
+    console.log(`📊 Saving daily history for ${platform} (${brand}) on ${todayIST}...`);
+
+    // Prepare history records for upsert (onConflict product_id, platform, brand, recorded_date)
+    const historyRecords = products
+      .filter(p => p.product_id && p.name && p.name !== 'NA')
+      .map(product => {
+        return {
+          product_id: product.product_id,
+          platform,
+          brand,
+          price: parseFloat(product.price || product.current_price) || 0,
+          in_stock: !String(product.in_stock || '').toLowerCase().includes('out of stock'),
+          recorded_date: todayIST
+        };
+      });
+
+    if (historyRecords.length === 0) {
+      console.log(`⚠️ No valid records for daily history (${platform}, ${brand})`);
+      return;
+    }
+
+    // Upsert into daily_price_history
+    const { error } = await supabaseAdmin
+      .from('daily_price_history')
+      .upsert(historyRecords, {
+        onConflict: 'product_id,platform,brand,recorded_date'
+      });
+
+    if (error) {
+      console.error('❌ Error saving daily price history:', error);
+    } else {
+      console.log(`✅ [DailyHistory] Upserted ${historyRecords.length} records for ${platform} on ${todayIST}`);
+    }
+  } catch (error) {
+    console.error('❌ Error in saveDailyPriceHistory:', error);
+  }
+}

@@ -147,7 +147,7 @@ async function scrapeProduct(page, url, index) {
     product_id, // ✅ REQUIRED
     url: `https://www.amazon.in/dp/${product_id}`,
     name: "NA",
-    current_price: "NA",
+    price: "NA",
     original_price: "NA",
     image: "NA",
     unit: "NA",
@@ -200,7 +200,7 @@ async function scrapeProduct(page, url, index) {
 
 
         // ✅ UNIVERSAL PRICE
-        const current_price = (() => {
+        const price = (() => {
           const selectors = [
             "#corePriceDisplay_desktop_feature_div span.a-offscreen",
             ".a-price .a-offscreen",
@@ -243,7 +243,7 @@ async function scrapeProduct(page, url, index) {
 
         return {
           name: get("#productTitle"),
-          current_price,
+          price,
           original_price,
           stock: get("#availability > span"),
           image: img([
@@ -271,17 +271,17 @@ async function scrapeProduct(page, url, index) {
       data = await scrapeOnce();
 
       // ✅ stop retry if we successfully got name + price
-      if (data.name !== "NA" && data.current_price !== "NA") break;
+      if (data.name !== "NA" && data.price !== "NA") break;
     }
 
 
     // ----------- APPLY RESULTS ------------
     row.name = data.name;
-    row.current_price = clean(data.current_price);
+    row.price = clean(data.price);
 
     // ✅ fallback MRP
     const mrp = clean(data.original_price);
-    row.original_price = (mrp !== "NA" && mrp !== "") ? mrp : row.current_price;
+    row.original_price = (mrp !== "NA" && mrp !== "") ? mrp : row.price;
 
     row.image = data.image !== "NA" ? data.image : "NA";
     row.unit = data.unit || "NA";
@@ -306,7 +306,7 @@ async function scrapeProduct(page, url, index) {
       console.log(`❌ Still NA after retry: ${url}`);
     }
 
-    console.log(`✅ ${row.name} | ₹${row.current_price} | ₹${row.original_price} | ${row.unit} | ${row.in_stock}`);
+    console.log(`✅ ${row.name} | ₹${row.price} | ₹${row.original_price} | ${row.unit} | ${row.in_stock}`);
 
   } catch (err) {
     console.log(`❌ Failed: ${err.message}`);
@@ -378,7 +378,7 @@ async function scrape() {
 
 
     // ✅ CSV
-    const headers = ["product_id", "url", "name", "current_price", "original_price", "image", "unit", "in_stock"];
+    const headers = ["product_id", "url", "name", "price", "original_price", "image", "unit", "in_stock"];
     const csv = [
       headers.join(","),
       ...rows.map(r =>
@@ -390,7 +390,7 @@ async function scrape() {
     console.log("📁 CSV saved");
 
 const safeRows = rows.map(r => {
-  let price = r.current_price;
+  let price = r.price;
 
   if (price === "NA" || price === "") {
     price = r.in_stock === "Out of Stock" ? "0" : price;
@@ -398,7 +398,7 @@ const safeRows = rows.map(r => {
 
   return {
     ...r,
-    current_price: price,
+    price: price,
     original_price:
       r.original_price !== "NA" && r.original_price !== ""
         ? r.original_price

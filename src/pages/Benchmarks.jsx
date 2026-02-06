@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../config/supabase';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
+import FeatherIcon from '../components/FeatherIcon';
 
 export default function Benchmarks() {
-  const { currentBrand, isAdmin, canEdit } = useAuth();
+  const { currentBrand, isAdmin, canEdit, loading: authLoading } = useAuth();
   const [platformFilter, setPlatformFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('updated_at');
@@ -22,13 +21,33 @@ export default function Benchmarks() {
   const [calendarError, setCalendarError] = useState(null);
   const [uploadingCalendar, setUploadingCalendar] = useState(false);
   const [previewMode, setPreviewMode] = useState('benchmarks');
-  const [existingCalendar, setExistingCalendar] = useState([]);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
   const [successPopup, setSuccessPopup] = useState(null);
+  const [existingCalendar, setExistingCalendar] = useState([]);
+  const [isBenchmarkDropdownOpen, setIsBenchmarkDropdownOpen] = useState(false);
+  const [isCalendarDropdownOpen, setIsCalendarDropdownOpen] = useState(false);
+  const benchmarkDropdownRef = useRef(null);
+  const calendarDropdownRef = useRef(null);
   const hasNotFound = uploadedRows.some(
     r => r.product_id === 'NOT_FOUND'
   );
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (benchmarkDropdownRef.current && !benchmarkDropdownRef.current.contains(e.target)) {
+        setIsBenchmarkDropdownOpen(false);
+      }
+      if (calendarDropdownRef.current && !calendarDropdownRef.current.contains(e.target)) {
+        setIsCalendarDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+
+  // NOTE: Removed feather.replace() - it conflicts with React's virtual DOM
+  // Icons will be rendered using inline SVG or a React-compatible icon component
 
   useEffect(() => {
     if (currentBrand) {
@@ -115,6 +134,63 @@ export default function Benchmarks() {
 
   }
 
+  async function downloadExistingBenchmarks() {
+    if (!currentBrand || !existingBenchmarks.length) return;
+
+    try {
+      const XLSX = await import('xlsx');
+      const rows = existingBenchmarks.map(b => ({
+        product_id: b.product_id,
+        brand: b.brand,
+        platform: b.platform,
+        name: b.name,
+        'BAU Price': b.bau_price || '',
+        'Event Price': b.event_price || ''
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Current Benchmarks');
+
+      XLSX.writeFile(
+        workbook,
+        `${currentBrand.brand_slug}_benchmarks_export.xlsx`
+      );
+      setIsBenchmarkDropdownOpen(false);
+    } catch (err) {
+      console.error('❌ Benchmark export failed:', err);
+      alert('Failed to export benchmarks');
+    }
+  }
+
+  async function downloadExistingCalendar() {
+    if (!currentBrand || !existingCalendar.length) return;
+
+    try {
+      const XLSX = await import('xlsx');
+
+      // Convert matrix back to flat rows if needed, or just export existingCalendar
+      const rows = existingCalendar.map(c => ({
+        Date: c.date,
+        Platform: c.platform,
+        Mode: c.mode
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Pricing Calendar');
+
+      XLSX.writeFile(
+        workbook,
+        `${currentBrand.brand_slug}_calendar_export.xlsx`
+      );
+      setIsCalendarDropdownOpen(false);
+    } catch (err) {
+      console.error('❌ Calendar export failed:', err);
+      alert('Failed to export calendar');
+    }
+  }
+
   function handleUploadClick() {
     fileInputRef.current?.click();
   }
@@ -163,16 +239,16 @@ export default function Benchmarks() {
       }
 
       const cleanedRows = rows.map(r => ({
-  ...r,
-  'BAU Price': r['BAU Price'] !== ''
-    ? Math.round(Number(r['BAU Price']))
-    : '',
-  'Event Price': r['Event Price'] !== ''
-    ? Math.round(Number(r['Event Price']))
-    : ''
-}));
+        ...r,
+        'BAU Price': r['BAU Price'] !== ''
+          ? Math.round(Number(r['BAU Price']))
+          : '',
+        'Event Price': r['Event Price'] !== ''
+          ? Math.round(Number(r['Event Price']))
+          : ''
+      }));
 
-setUploadedRows(cleanedRows);
+      setUploadedRows(cleanedRows);
 
       setUploadError(null);
       setPreviewMode('benchmarks');
@@ -316,70 +392,70 @@ setUploadedRows(cleanedRows);
   }
 
   function dedupeBenchmarks(rows) {
-  const map = new Map();
+    const map = new Map();
 
-  rows.forEach(row => {
-    const key = `${row.product_id}|${row.brand}|${row.platform}`;
+    rows.forEach(row => {
+      const key = `${row.product_id}|${row.brand}|${row.platform}`;
 
-    // last row wins (Excel bottom overrides top)
-    map.set(key, row);
-  });
+      // last row wins (Excel bottom overrides top)
+      map.set(key, row);
+    });
 
-  return Array.from(map.values());
-}
+    return Array.from(map.values());
+  }
 
   async function confirmUpload() {
-  if (!currentBrand) return;
+    if (!currentBrand) return;
 
-  try {
-    setSaving(true);
+    try {
+      setSaving(true);
 
-    // 🔹 STEP 1: dedupe uploaded rows
-    const dedupedRows = dedupeBenchmarks(uploadedRows);
+      // 🔹 STEP 1: dedupe uploaded rows
+      const dedupedRows = dedupeBenchmarks(uploadedRows);
 
-    // 🔹 STEP 2: warn user if duplicates existed
-    if (dedupedRows.length !== uploadedRows.length) {
-      alert(
-        'Duplicate products found in Excel. Latest row was used for each product.'
-      );
+      // 🔹 STEP 2: warn user if duplicates existed
+      if (dedupedRows.length !== uploadedRows.length) {
+        alert(
+          'Duplicate products found in Excel. Latest row was used for each product.'
+        );
+      }
+
+      // 🔹 STEP 3: build payload from deduped rows
+      const payload = dedupedRows.map(row => ({
+        product_id: row.product_id,
+        name: row.name,
+        brand: row.brand,
+        platform: row.platform,
+        bau_price:
+          row['BAU Price'] !== '' && row['BAU Price'] != null
+            ? Math.round(Number(row['BAU Price']))
+            : null,
+        event_price:
+          row['Event Price'] !== '' && row['Event Price'] != null
+            ? Math.round(Number(row['Event Price']))
+            : null,
+        updated_at: new Date().toISOString()
+      }));
+
+      // 🔹 STEP 4: upsert
+      const { error } = await supabase
+        .from('benchmarks')
+        .upsert(payload, {
+          onConflict: 'product_id,brand,platform'
+        });
+
+      if (error) throw error;
+
+      setSuccessPopup('benchmarks');
+      setTimeout(() => setSuccessPopup(null), 2000);
+      setUploadedRows([]);
+    } catch (err) {
+      console.error('❌ Upload failed:', err);
+      alert(err.message || 'Failed to save benchmarks');
+    } finally {
+      setSaving(false);
     }
-
-    // 🔹 STEP 3: build payload from deduped rows
-    const payload = dedupedRows.map(row => ({
-      product_id: row.product_id,
-      name: row.name,
-      brand: row.brand,
-      platform: row.platform,
-      bau_price:
-        row['BAU Price'] !== '' && row['BAU Price'] != null
-          ? Math.round(Number(row['BAU Price']))
-          : null,
-      event_price:
-        row['Event Price'] !== '' && row['Event Price'] != null
-          ? Math.round(Number(row['Event Price']))
-          : null,
-      updated_at: new Date().toISOString()
-    }));
-
-    // 🔹 STEP 4: upsert
-    const { error } = await supabase
-      .from('benchmarks')
-      .upsert(payload, {
-        onConflict: 'product_id,brand,platform'
-      });
-
-    if (error) throw error;
-
-    setSuccessPopup('benchmarks');
-    setTimeout(() => setSuccessPopup(null), 2000);
-    setUploadedRows([]);
-  } catch (err) {
-    console.error('❌ Upload failed:', err);
-    alert(err.message || 'Failed to save benchmarks');
-  } finally {
-    setSaving(false);
   }
-}
 
   async function loadExistingBenchmarks() {
     if (!currentBrand) return;
@@ -409,479 +485,415 @@ setUploadedRows(cleanedRows);
     }
   }
 
-  const filteredBenchmarks = existingBenchmarks
+  const filteredBenchmarks = (existingBenchmarks || [])
     .filter(row => {
+      if (!row) return false;
       if (platformFilter !== 'all' && row.platform !== platformFilter) {
         return false;
       }
 
-      if (
-        searchQuery &&
-        !row.name.toLowerCase().includes(searchQuery.toLowerCase())
-      ) {
-        return false;
+      if (searchQuery) {
+        const name = String(row?.name || '');
+        if (!name.toLowerCase().includes(searchQuery.toLowerCase())) {
+          return false;
+        }
       }
 
       return true;
     })
     .sort((a, b) => {
-      let valA = a[sortBy];
-      let valB = b[sortBy];
+      let valA = a?.[sortBy];
+      let valB = b?.[sortBy];
 
       if (sortBy === 'updated_at') {
-        valA = new Date(valA);
-        valB = new Date(valB);
+        const timeA = valA ? new Date(valA).getTime() : 0;
+        const timeB = valB ? new Date(valB).getTime() : 0;
+        valA = isNaN(timeA) ? 0 : timeA;
+        valB = isNaN(timeB) ? 0 : timeB;
       }
 
+      if (valA === valB) return 0;
       if (valA == null) return 1;
       if (valB == null) return -1;
 
-      if (valA < valB) return sortDir === 'asc' ? -1 : 1;
-      if (valA > valB) return sortDir === 'asc' ? 1 : -1;
+      // Handle numeric comparisons vs string
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return sortDir === 'asc' ? valA - valB : valB - valA;
+      }
+
+      const strA = String(valA).toLowerCase();
+      const strB = String(valB).toLowerCase();
+      if (strA < strB) return sortDir === 'asc' ? -1 : 1;
+      if (strA > strB) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
 
   const availablePlatforms = Array.from(
-    new Set(existingBenchmarks.map(b => b.platform).filter(Boolean))
-  );
+    new Set((existingBenchmarks || []).map(b => b?.platform).filter(Boolean))
+  ).map(p => String(p));
   const calendarMatrix = (() => {
-    if (!existingCalendar.length) return [];
+    try {
+      if (!existingCalendar || !existingCalendar.length) return [];
 
-    const map = {};
+      const map = {};
 
-    existingCalendar.forEach(({ date, platform, mode }) => {
-      if (!map[date]) {
-        map[date] = { date };
-      }
-      map[date][platform] = mode;
-    });
+      existingCalendar.forEach((row) => {
+        if (!row || !row.date) return;
+        const { date, platform, mode } = row;
+        const platKey = String(platform || 'unknown');
+        if (!map[date]) {
+          map[date] = { date };
+        }
+        map[date][platKey] = mode;
+      });
 
-    return Object.values(map).sort(
-      (a, b) => new Date(a.date) - new Date(b.date)
-    );
+      return Object.values(map).sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        if (isNaN(dateA)) return 1;
+        if (isNaN(dateB)) return -1;
+        return dateA - dateB;
+      });
+    } catch (err) {
+      console.error('❌ calendarMatrix error:', err);
+      return [];
+    }
   })();
 
+  if (authLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-[400px]">
+        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen">
-      <Header />
-      <main className="container mx-auto px-4 py-8">
-        {/* Hidden file input for Excel upload */}
-        <input
-          type="file"
-          ref={fileInputRef}
-          accept=".xlsx"
-          onChange={handleFileSelected}
-          className="hidden"
-        />
-        <input
-          type="file"
-          ref={calendarFileRef}
-          accept=".xlsx"
-          className="hidden"
-          onChange={handleCalendarFile}
-        />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Price Benchmarks</h1>
-            <p className="text-gray-400">Set target prices for {currentBrand?.brand_name || 'your brand'}</p>
-          </div>
-          {canEdit && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+    <div className="container mx-auto px-10 pt-[56px] pb-8 flex-1 flex flex-col">
+      {/* Hidden file inputs */}
+      <input type="file" ref={fileInputRef} accept=".xlsx" onChange={handleFileSelected} className="hidden" />
+      <input type="file" ref={calendarFileRef} accept=".xlsx" className="hidden" onChange={handleCalendarFile} />
 
-              {/* Benchmark Upload */}
-              <div className="bg-white/10 border border-white/20 rounded-xl p-6 flex flex-col justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold text-white mb-2">
-                    Benchmark Upload
-                  </h2>
-                  <p className="text-gray-400 text-sm mb-6">
-                    Upload BAU & Event benchmark prices
-                  </p>
-                </div>
+      <div className="flex flex-col lg:flex-row justify-between items-start gap-8 mb-10">
+        <header className="animate-reveal">
+          <h1 className="text-4xl font-medium text-white mb-2 tracking-tight">Price Benchmarks</h1>
+          <p className="text-zinc-500 font-medium">Set target prices for {currentBrand?.brand_name || 'your brand'}</p>
+        </header>
 
-                <div className="flex gap-3">
-                  <button
-                    onClick={downloadBenchmarkTemplate}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg"
-                  >
-                    Download Template
-                  </button>
-                  <button
-                    onClick={handleUploadClick}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
-                  >
-                    Upload
-                  </button>
-                </div>
+        {canEdit && (
+          <div className="flex flex-wrap gap-4 animate-reveal relative z-50" style={{ animationDelay: '0.1s' }}>
+            {/* Benchmark Section */}
+            <div className="glass-card p-6 flex flex-col justify-between min-w-[280px] transition-transform duration-300 overflow-visible">
+              <div>
+                <h2 className="text-sm font-bold text-white uppercase tracking-widest mb-1">Benchmarks</h2>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-4 opacity-70">BAU & Event Prices</p>
               </div>
-
-              {/* Event Pricing Calendar */}
-              <div className="bg-white/10 border border-white/20 rounded-xl p-6 flex flex-col justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold text-white mb-2">
-                    Event Pricing Calendar
-                  </h2>
-                  <p className="text-gray-400 text-sm mb-6">
-                    Define BAU / Event days per platform
-                  </p>
-                </div>
-
-                <div className="flex gap-3">
+              <div className="flex gap-2 relative">
+                <div className="flex-1 relative" ref={benchmarkDropdownRef}>
                   <button
-                    onClick={downloadCalendarTemplate}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg"
+                    onClick={() => setIsBenchmarkDropdownOpen(!isBenchmarkDropdownOpen)}
+                    className="w-full flex items-center justify-center gap-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-300 transition-all"
                   >
-                    Download Template
+                    <span>Download</span>
+                    <FeatherIcon name="chevron-down" className={`w-3 h-3 transition-transform duration-300 ${isBenchmarkDropdownOpen ? 'rotate-180' : ''}`} size={12} />
                   </button>
-                  <button
-                    onClick={() => calendarFileRef.current?.click()}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
-                  >
-                    Upload
-                  </button>
+
+                  {isBenchmarkDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 z-[100] animate-reveal-down bg-[var(--bg-main)] border border-white/10 rounded-xl shadow-2xl backdrop-blur-3xl overflow-hidden p-1">
+                      <button
+                        onClick={() => { downloadBenchmarkTemplate(); setIsBenchmarkDropdownOpen(false); }}
+                        className="w-full text-left px-4 py-3 text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                      >
+                        Download Template
+                      </button>
+                      <button
+                        onClick={() => { downloadExistingBenchmarks(); setIsBenchmarkDropdownOpen(false); }}
+                        className="w-full text-left px-4 py-3 text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                      >
+                        Existing Data
+                      </button>
+                    </div>
+                  )}
                 </div>
+                <button onClick={handleUploadClick} className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20">Upload</button>
               </div>
-
             </div>
-          )}
 
+            {/* Calendar Section */}
+            <div className="glass-card p-6 flex flex-col justify-between min-w-[280px] transition-transform duration-300 overflow-visible">
+              <div>
+                <h2 className="text-sm font-bold text-white uppercase tracking-widest mb-1">Pricing Calendar</h2>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-4 opacity-70">Define Mode per Platform</p>
+              </div>
+              <div className="flex gap-2 relative">
+                <div className="flex-1 relative" ref={calendarDropdownRef}>
+                  <button
+                    onClick={() => setIsCalendarDropdownOpen(!isCalendarDropdownOpen)}
+                    className="w-full flex items-center justify-center gap-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-300 transition-all"
+                  >
+                    <span>Download</span>
+                    <FeatherIcon name="chevron-down" className={`w-3 h-3 transition-transform duration-300 ${isCalendarDropdownOpen ? 'rotate-180' : ''}`} size={12} />
+                  </button>
 
-
-        </div>
-        {/* Upload error message */}
-        {uploadError && (
-          <div className="mt-4 mb-4 bg-red-500/20 border border-red-500/40 text-red-300 px-4 py-2 rounded">
-            ❌ {uploadError}
+                  {isCalendarDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 z-[100] animate-reveal-down bg-[var(--bg-main)] border border-white/10 rounded-xl shadow-2xl backdrop-blur-3xl overflow-hidden p-1">
+                      <button
+                        onClick={() => { downloadCalendarTemplate(); setIsCalendarDropdownOpen(false); }}
+                        className="w-full text-left px-4 py-3 text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                      >
+                        Download Template
+                      </button>
+                      <button
+                        onClick={() => { downloadExistingCalendar(); setIsCalendarDropdownOpen(false); }}
+                        className="w-full text-left px-4 py-3 text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                      >
+                        Existing Data
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <button onClick={() => calendarFileRef.current?.click()} className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20">Upload</button>
+              </div>
+            </div>
           </div>
         )}
-        <div className="flex flex-wrap gap-4 mb-4 items-center justify-between">
-          <div className="flex flex-wrap gap-4 items-center">
-            {/* Platform filter */}
-            <select
-              value={platformFilter}
-              onChange={e => setPlatformFilter(e.target.value)}
-              className="bg-white/10 text-white px-3 py-2 rounded border border-white/20"
-            >
-              <option value="all">All Platforms</option>
-              {availablePlatforms.map(p => (
-                <option key={p} value={p}>
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
-                </option>
-              ))}
-            </select>
+      </div>
 
-            {/* Search */}
+      {uploadError && (
+        <div className="mb-6 bg-red-500/10 border border-red-500/20 text-red-400 px-6 py-4 rounded-2xl text-sm font-bold animate-reveal flex items-center gap-3">
+          <FeatherIcon name="alert-circle" className="w-5 h-5" size={20} />
+          <span>{uploadError}</span>
+        </div>
+      )}
+
+      {/* Controls Bar */}
+      <div className="flex flex-wrap gap-4 mb-8 items-center justify-between glass-card p-3 animate-reveal" style={{ animationDelay: '0.2s' }}>
+        <div className="flex flex-wrap gap-2 items-center">
+          <select
+            value={platformFilter}
+            onChange={e => setPlatformFilter(e.target.value)}
+            className="bg-white/5 border border-transparent focus:border-indigo-500/30 rounded-xl py-3 px-5 text-[10px] font-black uppercase tracking-widest text-white outline-none cursor-pointer appearance-none transition-all"
+          >
+            <option value="all">ALL PLATFORMS</option>
+            {(availablePlatforms || []).map(p => (
+              <option key={p} value={p}>{p?.toUpperCase()}</option>
+            ))}
+          </select>
+
+          <div className="relative">
+            <FeatherIcon name="search" className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 group-hover:text-indigo-400 transition-colors" size={14} />
             <input
               type="text"
-              placeholder="Search product name…"
+              placeholder="SEARCH PRODUCTS..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="bg-white/10 text-white px-3 py-2 rounded border border-white/20 w-64"
+              className="bg-white/5 border border-transparent focus:border-indigo-500/30 rounded-xl py-3 pl-11 pr-5 text-[10px] font-black uppercase tracking-widest text-white placeholder:text-zinc-600 outline-none w-64 transition-all"
             />
-
-            {/* Sort */}
-            <select
-              value={`${sortBy}:${sortDir}`}
-              onChange={e => {
-                const [field, dir] = e.target.value.split(':');
-                setSortBy(field);
-                setSortDir(dir);
-              }}
-              className="bg-white/10 text-white px-3 py-2 rounded border border-white/20"
-            >
-              <option value="updated_at:desc">Last Updated ↓</option>
-              <option value="updated_at:asc">Last Updated ↑</option>
-              <option value="bau_price:desc">BAU Price ↓</option>
-              <option value="bau_price:asc">BAU Price ↑</option>
-              <option value="event_price:desc">Event Price ↓</option>
-              <option value="event_price:asc">Event Price ↑</option>
-            </select>
           </div>
 
-          {/* TOGGLE — always visible */}
-          <div className="flex bg-white/10 border border-white/20 rounded-lg p-1">
-            <button
-              onClick={() => setPreviewMode('benchmarks')}
-              className={`px-4 py-1.5 text-xs font-medium rounded-md transition ${previewMode === 'benchmarks'
-                ? 'bg-indigo-600 text-white'
-                : 'text-gray-400 hover:text-white'
-                }`}
-            >
-              Benchmarks
-            </button>
-
-            <button
-              onClick={() => setPreviewMode('calendar')}
-              className={`px-4 py-1.5 text-xs font-medium rounded-md transition ${previewMode === 'calendar'
-                ? 'bg-indigo-600 text-white'
-                : 'text-gray-400 hover:text-white'
-                }`}
-            >
-              Event Calendar
-            </button>
-          </div>
+          <select
+            value={`${sortBy}:${sortDir}`}
+            onChange={e => {
+              const [field, dir] = e.target.value.split(':');
+              setSortBy(field);
+              setSortDir(dir);
+            }}
+            className="bg-white/5 border border-transparent focus:border-indigo-500/30 rounded-xl py-3 px-5 text-[10px] font-black uppercase tracking-widest text-white outline-none cursor-pointer appearance-none transition-all"
+          >
+            <option value="updated_at:desc">LATEST UPDATED</option>
+            <option value="updated_at:asc">OLDEST UPDATED</option>
+            <option value="bau_price:desc">BAU PRICE ↓</option>
+            <option value="bau_price:asc">BAU PRICE ↑</option>
+            <option value="event_price:desc">EVENT PRICE ↓</option>
+            <option value="event_price:asc">EVENT PRICE ↑</option>
+          </select>
         </div>
 
-        {/* ===== PREVIEW AREA ===== */}
+        <div className="flex bg-black/20 p-1 rounded-xl border border-white/5">
+          <button
+            onClick={() => setPreviewMode('benchmarks')}
+            className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${previewMode === 'benchmarks' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Benchmarks
+          </button>
+          <button
+            onClick={() => setPreviewMode('calendar')}
+            className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${previewMode === 'calendar' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Event Calendar
+          </button>
+        </div>
+      </div>
 
-        {/* ===== PREVIEW AREA ===== */}
-        <div className="mt-8">
-
-          {previewMode === 'benchmarks' && uploadedRows.length > 0 && (
-            <>
-              <div className="bg-white/10 border border-white/20 rounded-xl p-4">
-                <h2 className="text-xl font-semibold text-white mb-4">
-                  Uploaded Benchmark Preview
-                </h2>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[900px]">
+      <div className="flex-1 animate-reveal" style={{ animationDelay: '0.3s' }}>
+        {previewMode === 'benchmarks' && (
+          <>
+            {uploadedRows.length > 0 ? (
+              <div className="glass-card mb-8 overflow-hidden">
+                <div className="p-6 border-b border-white/5 flex justify-between items-center bg-indigo-500/[0.03]">
+                  <div>
+                    <h2 className="text-lg font-bold text-white tracking-tight">Upload Preview</h2>
+                    <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mt-1">Review changes before saving</p>
+                  </div>
+                  <button
+                    onClick={confirmUpload}
+                    disabled={hasNotFound || saving}
+                    className="bg-indigo-500 hover:bg-indigo-600 text-white px-8 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all disabled:opacity-50 shadow-xl shadow-indigo-500/20"
+                  >
+                    {saving ? 'SAVING...' : 'CONFIRM & SAVE'}
+                  </button>
+                </div>
+                <div className="overflow-x-auto custom-scrollbar p-2">
+                  <table className="w-full text-left border-separate border-spacing-y-2">
                     <thead>
-                      <tr className="border-b border-white/20 text-white">
-                        <th className="px-3 py-2 text-left">Product ID</th>
-                        <th className="px-3 py-2 text-left">Brand</th>
-                        <th className="px-3 py-2 text-left">Platform</th>
-                        <th className="px-3 py-2 text-left">Name</th>
-                        <th className="px-3 py-2 text-right">BAU Price</th>
-                        <th className="px-3 py-2 text-right">Event Price</th>
+                      <tr className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                        <th className="px-6 py-3">Product ID</th>
+                        <th className="px-6 py-3">Details</th>
+                        <th className="px-6 py-3 text-right">BAU Price</th>
+                        <th className="px-6 py-3 text-right">Event Price</th>
                       </tr>
                     </thead>
                     <tbody>
                       {uploadedRows.map((row, idx) => (
-                        <tr
-                          key={idx}
-                          className={`border-b border-white/10 ${row.product_id === 'NOT_FOUND' ? 'bg-red-500/10' : ''
-                            }`}
-                        >
-                          <td className="px-3 py-2 text-white">{row.product_id}</td>
-                          <td className="px-3 py-2 text-white">{row.brand}</td>
-                          <td className="px-3 py-2 text-white">{row.platform}</td>
-                          <td className="px-3 py-2 text-white">{row.name}</td>
-                          <td className="px-3 py-2 text-right text-white">
-                            {row['BAU Price']}
+                        <tr key={idx} className={`text-sm ${row.product_id === 'NOT_FOUND' ? 'bg-red-500/10' : 'bg-white/[0.02]'} hover:bg-white/[0.05] transition-colors overflow-hidden group`}>
+                          <td className="px-6 py-4 first:rounded-l-2xl border-y border-l border-white/5 font-mono text-[10px] text-zinc-400 group-hover:text-white uppercase tracking-tighter">{row.product_id}</td>
+                          <td className="px-6 py-4 border-y border-white/5">
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-indigo-400 transition-colors">{row.platform} • {row.brand}</span>
+                              <span className="text-white font-bold whitespace-normal leading-relaxed mt-1">{row.name}</span>
+                            </div>
                           </td>
-                          <td className="px-3 py-2 text-right text-white">
-                            {row['Event Price']}
-                          </td>
+                          <td className="px-6 py-4 border-y border-white/5 text-right font-black text-emerald-400 text-base">₹{row['BAU Price']}</td>
+                          <td className="px-6 py-4 last:rounded-r-2xl border-y border-r border-white/5 text-right font-black text-indigo-400 text-base">₹{row['Event Price']}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-
-                <div className="mt-4 flex justify-end">
-                  <button
-                    onClick={confirmUpload}
-                    disabled={hasNotFound || saving}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg disabled:opacity-50"
-                  >
-                    {saving ? 'Saving…' : 'Confirm & Save'}
-                  </button>
-                </div>
               </div>
-            </>
-          )}
-
-          {previewMode === 'calendar' && (
-            <div className="bg-white/10 border border-white/20 rounded-xl p-4">
-              <h2 className="text-xl font-semibold text-white mb-4">
-                Event Pricing Calendar
-              </h2>
-
-              {calendarPreview.length > 0 ? (
-                <>
-                  <p className="text-gray-400 mb-2">Uploaded Preview</p>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[700px]">
+            ) : (
+              <div className="glass-card min-h-[400px] overflow-hidden">
+                <div className="p-6 border-b border-white/5 bg-white/[0.01]">
+                  <h2 className="text-lg font-bold text-white tracking-tight">Existing Benchmarks</h2>
+                </div>
+                {loadingExisting ? (
+                  <div className="flex items-center justify-center h-64">
+                    <div className="w-10 h-10 border-2 border-white/10 border-t-indigo-500 rounded-full animate-spin" />
+                  </div>
+                ) : filteredBenchmarks.length === 0 ? (
+                  <div className="text-center py-32">
+                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6">
+                      <FeatherIcon name="database" className="w-8 h-8 text-zinc-600" size={32} />
+                    </div>
+                    <p className="text-zinc-500 uppercase font-black tracking-[0.2em] text-[10px]">No records found</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto custom-scrollbar p-2">
+                    <table className="w-full text-left border-separate border-spacing-y-2">
                       <thead>
-                        <tr className="border-b border-white/20 text-white">
-                          <th className="px-3 py-2 text-left">Date</th>
-                          <th className="px-3 py-2 text-center">Amazon</th>
-                          <th className="px-3 py-2 text-center">Blinkit</th>
-                          <th className="px-3 py-2 text-center">Instamart</th>
-                          <th className="px-3 py-2 text-center">Zepto</th>
+                        <tr className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.15em]">
+                          <th className="px-6 py-3">Source</th>
+                          <th className="px-6 py-3">Product Catalog</th>
+                          <th className="px-6 py-3 text-right">BAU</th>
+                          <th className="px-6 py-3 text-right">Event</th>
+                          <th className="px-6 py-3 text-right">Last Sync</th>
                         </tr>
                       </thead>
-
                       <tbody>
-                        {calendarPreview.map((row, idx) => (
-                          <tr key={idx} className="border-b border-white/10">
-                            <td className="px-3 py-2 text-white">
-                              {row.Date}
+                        {filteredBenchmarks.map((row, idx) => (
+                          <tr key={idx} className="bg-white/[0.02] hover:bg-white/[0.05] transition-all group">
+                            <td className="px-6 py-4 first:rounded-l-2xl border-y border-l border-white/5">
+                              <span className="text-[9px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-3 py-1.5 rounded-lg group-hover:bg-indigo-500 group-hover:text-white transition-all">{row.platform}</span>
                             </td>
-
-                            {['Amazon', 'Blinkit', 'Instamart', 'Zepto'].map(p => (
-                              <td
-                                key={p}
-                                className="px-3 py-2 text-center text-white"
-                              >
-                                {row[p] || '—'}
-                              </td>
-                            ))}
+                            <td className="px-6 py-4 border-y border-white/5">
+                              <div className="flex flex-col">
+                                <span className="font-bold text-white group-hover:text-indigo-400 transition-colors leading-snug">{row.name}</span>
+                                <span className="text-[9px] font-mono text-zinc-500 mt-1 uppercase tracking-tighter group-hover:text-zinc-400">{row.product_id}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 border-y border-white/5 text-right font-black text-white text-base">₹{row.bau_price}</td>
+                            <td className="px-6 py-4 border-y border-white/5 text-right font-black text-white text-base">₹{row.event_price}</td>
+                            <td className="px-6 py-4 last:rounded-r-2xl border-y border-r border-white/5 text-right">
+                              <span className="text-[10px] text-white font-bold uppercase tracking-wider bg-white/5 px-3 py-1.5 rounded-lg group-hover:bg-white/10 whitespace-nowrap">
+                                {row?.updated_at ? new Date(row.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'}
+                              </span>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
 
-                  <div className="mt-4 flex justify-end">
-                    <button
-                      onClick={confirmCalendarUpload}
-                      disabled={uploadingCalendar}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg"
-                    >
-                      {uploadingCalendar ? 'Saving…' : 'Confirm & Save Calendar'}
-                    </button>
-                  </div>
-                </>
-              ) : loadingCalendar ? (
-                <p className="text-gray-400">Loading calendar…</p>
-              ) : existingCalendar.length === 0 ? (
-                <p className="text-gray-400">No event calendar configured.</p>
-              ) : (
-                <>
-                  <p className="text-gray-400 mb-2">Existing Calendar</p>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[600px] text-white text-sm">
-                      <tbody>
-                        <div className="overflow-x-auto">
-                          <table className="w-full min-w-[700px] text-white text-sm">
-                            <thead>
-                              <tr className="border-b border-white/20">
-                                <th className="px-3 py-2 text-left">Date</th>
-                                <th className="px-3 py-2 text-center">Amazon</th>
-                                <th className="px-3 py-2 text-center">Blinkit</th>
-                                <th className="px-3 py-2 text-center">Instamart</th>
-                                <th className="px-3 py-2 text-center">Zepto</th>
-                              </tr>
-                            </thead>
-
-                            <tbody>
-                              {calendarMatrix.map((row, idx) => (
-                                <tr key={idx} className="border-b border-white/10">
-                                  <td className="px-3 py-2">{row.date}</td>
-
-                                  {['amazon', 'blinkit', 'instamart', 'zepto'].map(p => (
-                                    <td
-                                      key={p}
-                                      className="px-3 py-2 text-center text-white"
-                                    >
-                                      {row[p] || '—'}
-                                    </td>
-                                  ))}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-
-                      </tbody>
-                    </table>
-                  </div>
-                </>
+        {previewMode === 'calendar' && (
+          <div className="glass-card p-6 min-h-[400px]">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold text-white tracking-tight">Event Pricing Calendar</h2>
+              {calendarPreview.length > 0 && (
+                <button
+                  onClick={confirmCalendarUpload}
+                  disabled={uploadingCalendar}
+                  className="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-500/20"
+                >
+                  {uploadingCalendar ? 'SAVING...' : 'SAVE CALENDAR'}
+                </button>
               )}
             </div>
-          )}
 
-        </div>
-
-        {/* ===== EXISTING BENCHMARKS ===== */}
-        <div className="mt-10 bg-white/10 border border-white/20 rounded-xl p-4">
-          <h2 className="text-xl font-semibold text-white mb-4">
-            Existing Benchmarks
-          </h2>
-
-          {loadingExisting ? (
-            <p className="text-gray-400">Loading existing benchmarks…</p>
-          ) : filteredBenchmarks.length === 0 ? (
-            <p className="text-gray-400">No benchmarks found.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-separate border-spacing-y-2">
                 <thead>
-                  <tr className="border-b border-white/20 text-white">
-                    <th className="px-3 py-2 text-left">Product ID</th>
-                    <th className="px-3 py-2 text-left">Platform</th>
-                    <th className="px-3 py-2 text-left">Name</th>
-                    <th className="px-3 py-2 text-right">BAU</th>
-                    <th className="px-3 py-2 text-right">Event</th>
-                    <th className="px-3 py-2 text-left">Last Updated</th>
+                  <tr className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                    <th className="px-4 py-2">Date</th>
+                    <th className="px-4 py-2 text-center">Amazon</th>
+                    <th className="px-4 py-2 text-center">Blinkit</th>
+                    <th className="px-4 py-2 text-center">Instamart</th>
+                    <th className="px-4 py-2 text-center">Zepto</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredBenchmarks.map((row, idx) => (
-                    <tr key={idx} className="border-b border-white/10">
-                      <td className="px-3 py-2 text-white text-xs">
-                        {row.product_id}
+                  {(calendarPreview.length > 0 ? calendarPreview : calendarMatrix).map((row, idx) => (
+                    <tr key={idx} className="bg-white/[0.02] hover:bg-white/[0.05] transition-colors group">
+                      <td className="px-4 py-4 first:rounded-l-xl border-y border-l border-white/5 font-mono text-xs text-white">
+                        {row?.date || row?.Date || '—'}
                       </td>
-                      <td className="px-3 py-2 text-white">
-                        {row.platform}
-                      </td>
-                      <td className="px-3 py-2 text-white">
-                        {row.name}
-                      </td>
-                      <td className="px-3 py-2 text-right text-white">
-                        {row.bau_price ?? '—'}
-                      </td>
-                      <td className="px-3 py-2 text-right text-white">
-                        {row.event_price ?? '—'}
-                      </td>
-                      <td className="px-3 py-2 text-gray-400 text-sm">
-                        {new Date(row.updated_at).toLocaleString()}
-                      </td>
+                      {['Amazon', 'Blinkit', 'Instamart', 'Zepto'].map(p => {
+                        const valRaw = row?.[p] || row?.[p.toLowerCase()] || '—';
+                        const val = String(valRaw).toUpperCase();
+                        const isEvent = val === 'EVENT';
+                        return (
+                          <td key={p} className="px-4 py-4 border-y border-white/5 text-center">
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border ${isEvent ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 shadow-[0_0_8px_rgba(99,102,241,0.2)]' : 'bg-white/5 text-zinc-500 border-white/10'}`}>
+                              {val}
+                            </span>
+                          </td>
+                        );
+                      })}
+                      <td className="last:rounded-r-xl border-y border-r border-white/5"></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          )}
+          </div>
+        )}
+      </div>
+
+      {successPopup && (
+        <div className="fixed bottom-8 right-8 animate-reveal-up bg-green-500/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-green-400/50 z-[100]">
+          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+            <FeatherIcon name="check" className="w-5 h-5" size={20} />
+          </div>
+          <div>
+            <p className="text-sm font-bold uppercase tracking-widest">Success</p>
+            <p className="text-[11px] opacity-80 font-medium">Pricing updated successfully</p>
+          </div>
         </div>
-
-        {showStatus && (
-          <div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg mb-6">
-            {showStatus === 'benchmarks' && 'Benchmarks saved successfully!'}
-            {showStatus === 'calendar' && 'Event calendar saved successfully!'}
-          </div>
-        )}
-
-
-        {!canEdit && (
-          <div className="mt-4 bg-yellow-500/20 border border-yellow-500/50 text-yellow-300 px-4 py-3 rounded-lg">
-            ⚠️ You have view-only access. Contact an admin to edit benchmarks.
-          </div>
-        )}
-        {successPopup && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <div className="bg-[#0f172a] border border-white/10 rounded-2xl px-8 py-6 flex flex-col items-center animate-scale-in">
-
-              {/* Animated check */}
-              <div className="w-16 h-16 rounded-full border-4 border-green-500 flex items-center justify-center mb-4 animate-check">
-                <svg
-                  className="w-8 h-8 text-green-500"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-
-              <p className="text-white text-lg font-semibold">
-                {successPopup === 'benchmarks'
-                  ? 'Benchmarks uploaded successfully'
-                  : 'Event calendar uploaded successfully'}
-              </p>
-            </div>
-          </div>
-        )}
-      </main>
-      <Footer />
+      )}
     </div>
   );
 }

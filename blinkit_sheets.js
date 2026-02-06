@@ -26,40 +26,35 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function setLocation(page, pincode) {
   console.log(`📍 Setting location to ${pincode}`);
 
+  const LOCATION_INPUT = 'input[name="select-locality"]';
+  const LOCATION_RESULT =
+    'div[class*="LocationSearchList__LocationDetailContainer"]';
+
   try {
-    const PIN_INPUT =
-      "#app > div > div > div.containers__HeaderContainer-sc-1t9i1pe-0.hzuVdo > " +
-      "header > div.LocationDropDown__LocationModalContainer-sc-bx29pc-0.DeWG > " +
-      "div.location__shake-container-v1.animated > div > div > div > div > div > " +
-      "div:nth-child(2) > div:nth-child(2) > div > div:nth-child(3) > " +
-      "div > div > div > input";
+    // Wait for input
+    await page.waitForSelector(LOCATION_INPUT, {
+      visible: true,
+      timeout: 30000,
+    });
 
-    const FIRST_RESULT =
-      "#app > div > div > div.containers__HeaderContainer-sc-1t9i1pe-0.hzuVdo > " +
-      "header > div.LocationDropDown__LocationModalContainer-sc-bx29pc-0.DeWG > " +
-      "div.location__shake-container-v1.animated > div > div > " +
-      "div.location-footer > div > div > div:nth-child(1) > " +
-      "div.LocationSearchList__LocationDetailContainer-sc-93rfr7-1.fjUUbA";
+    // Clear properly (React-safe)
+    await page.click(LOCATION_INPUT, { clickCount: 3 });
+    await page.keyboard.press("Backspace");
 
-    await page.waitForSelector(PIN_INPUT, { timeout: 30000 });
+    // Type like a human
+    await page.type(LOCATION_INPUT, pincode, { delay: 120 });
 
-    await page.evaluate((sel) => {
-      const el = document.querySelector(sel);
-      if (!el) throw new Error("PIN input not found");
-      el.focus();
-      el.value = "";
-    }, PIN_INPUT);
+    // Wait for results
+    await page.waitForSelector(LOCATION_RESULT, {
+      visible: true,
+      timeout: 30000,
+    });
 
-    await sleep(300);
-    await page.keyboard.type(pincode, { delay: 120 });
+    // IMPORTANT: click via Puppeteer, not evaluate
+    const results = await page.$$(LOCATION_RESULT);
+    if (!results.length) throw new Error("No location results found");
 
-    await page.waitForSelector(FIRST_RESULT, { timeout: 30000 });
-
-    await page.evaluate((sel) => {
-      const el = document.querySelector(sel);
-      if (!el) throw new Error("Location result not found");
-      el.click();
-    }, FIRST_RESULT);
+    await results[0].click({ delay: 100 });
 
     await sleep(4000);
     console.log("✅ Location set successfully");
