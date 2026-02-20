@@ -13,6 +13,7 @@ import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
 import AdminUsers from './pages/AdminUsers';
 import AcceptInvite from './pages/AcceptInvite';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import DashboardLayout from './components/DashboardLayout';
 
 // Protected Route Component
@@ -68,6 +69,7 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/invite/:token" element={<AcceptInvite />} />
+      <Route path="/privacypolicy" element={<PrivacyPolicy />} />
       <Route path="*" element={<DashboardRoutes />} />
     </Routes>
   );
