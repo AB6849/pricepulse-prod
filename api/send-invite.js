@@ -19,12 +19,10 @@ export default async function handler(req, res) {
 
   try {
     const transporter = nodemailer.createTransport({
-      host: 'smtp.sendgrid.net',
-      port: 587,
-      secure: false,
+      service: process.env.EMAIL_SERVICE || 'gmail',
       auth: {
-        user: 'apikey',
-        pass: process.env.SENDGRID_API_KEY
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
       }
     });
 
@@ -84,7 +82,7 @@ export default async function handler(req, res) {
     `;
 
     await transporter.sendMail({
-      from: process.env.SENDGRID_FROM_EMAIL,
+      from: process.env.EMAIL_USER || process.env.SENDGRID_FROM_EMAIL,
       to: email,
       subject: `You're invited to join ${brandName} on PricePulse`,
       html: htmlContent

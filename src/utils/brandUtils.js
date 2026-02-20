@@ -9,6 +9,7 @@ export const getBrandLogo = (brand) => {
     else if (slug === 'pet-crux' || slug === 'petcrux') logoSrc = '/petcruxlogo.jpg';
     else if (slug === 'pepe') logoSrc = '/pepelogo.png';
     else if (slug === 'goat') logoSrc = '/goatlogo.png';
+    else if (slug === 'happilo') logoSrc = '/happilo_logo.jpg';
 
     if (!logoSrc || logoSrc === '') logoSrc = '/trabenfull.png';
     return logoSrc;

@@ -8,7 +8,18 @@ dotenv.config();
  * Create email transporter
  */
 function createTransporter() {
-  // Option 1: SendGrid (recommended)
+  // Option 1: Gmail (requires app password)
+  if (process.env.EMAIL_SERVICE === 'gmail' || process.env.EMAIL_USER?.includes('gmail')) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD // App password, not regular password
+      }
+    });
+  }
+
+  // Option 2: SendGrid
   if (process.env.SENDGRID_API_KEY) {
     return nodemailer.createTransport({
       host: 'smtp.sendgrid.net',
@@ -17,17 +28,6 @@ function createTransporter() {
       auth: {
         user: 'apikey',
         pass: process.env.SENDGRID_API_KEY
-      }
-    });
-  }
-
-  // Option 2: Gmail (requires app password)
-  if (process.env.EMAIL_SERVICE === 'gmail') {
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD // App password, not regular password
       }
     });
   }
@@ -96,7 +96,7 @@ function formatPriceChangeEmail(changes) {
     const emoji = platformEmojis[change.platform] || '📦';
     const priceChangeClass = change.price_change > 0 ? 'price-increase' : 'price-decrease';
     const priceChangeSymbol = change.price_change > 0 ? '↑' : '↓';
-    
+
     html += `
       <div class="product">
         <div class="product-name">${emoji} ${change.name}</div>
@@ -159,7 +159,7 @@ export async function sendPriceChangeEmail(changes, recipientEmail) {
 
     // Determine sender email
     const fromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.EMAIL_USER || 'noreply@pricepulse.com';
-    
+
     const mailOptions = {
       from: `"Price Pulse" <${fromEmail}>`,
       to: recipientEmail,
@@ -206,8 +206,8 @@ export async function notifyPriceChanges(changes, brand = 'pepe') {
     for (const subscription of subscriptions) {
       const relevantChanges = changes.filter(change => {
         // Filter by product name if specified
-        if (subscription.product_name && 
-            change.name.toLowerCase() !== subscription.product_name.toLowerCase()) {
+        if (subscription.product_name &&
+          change.name.toLowerCase() !== subscription.product_name.toLowerCase()) {
           return false;
         }
 

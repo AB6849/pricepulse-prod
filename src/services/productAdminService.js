@@ -48,23 +48,34 @@ export async function upsertProducts(products, platform, brand) {
         })
         .filter(p => p.name !== null);
     if (transformed.length === 0) {
-        console.log(`⚠️ No valid products to upsert for ${platform} (${brand})`);
+        console.log(`⚠️ No valid products to insert for ${platform} (${brand})`);
         return [];
     }
 
+    // Step 1: Delete existing products for this platform + brand
+    const { error: deleteError } = await supabaseAdmin
+        .from('products')
+        .delete()
+        .eq('platform', platform)
+        .eq('brand', brand);
+
+    if (deleteError) {
+        console.error('❌ Supabase delete error:', deleteError);
+        throw deleteError;
+    }
+
+    // Step 2: Insert fresh product data
     const { data, error } = await supabaseAdmin
         .from('products')
-        .upsert(transformed, {
-            onConflict: 'platform,product_id'
-        })
+        .insert(transformed)
         .select();
 
     if (error) {
-        console.error('❌ Supabase upsert error:', error);
+        console.error('❌ Supabase insert error:', error);
         throw error;
     }
 
-    console.log(`✅ Upserted ${data.length} products (${platform}, ${brand})`);
+    console.log(`✅ Refreshed ${data.length} products (${platform}, ${brand})`);
 
     // ---- Price history + alerts (non-blocking) ----
     try {
