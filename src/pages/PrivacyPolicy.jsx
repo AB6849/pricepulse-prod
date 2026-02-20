@@ -100,7 +100,7 @@ export default function PrivacyPolicy() {
                 </div>
 
                 <div className="mt-12 pt-6 border-t border-white/10 text-center">
-                    <a href="/" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium text-sm transition-colors border border-white/5">
+                    <a href="https://www.traben.online/" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium text-sm transition-colors border border-white/5">
                         <i data-feather="arrow-left" className="w-4 h-4"></i>
                         Return to Traben
                     </a>
