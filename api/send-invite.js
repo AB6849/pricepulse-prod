@@ -44,13 +44,13 @@ export default async function handler(req, res) {
       <body>
         <div class="container">
           <div class="header">
-            <h1>You're Invited to PricePulse!</h1>
+            <h1>You're Invited to Traben!</h1>
           </div>
           <div class="content">
             <p>Hi there,</p>
-            <p><strong>${inviterName}</strong> has invited you to join <strong>${brandName}</strong> on PricePulse.</p>
+            <p><strong>${inviterName}</strong> has invited you to join <strong>${brandName}</strong> on Traben.</p>
             
-            <p>PricePulse helps you monitor product prices across Blinkit, Swiggy, and Zepto in real-time.</p>
+            <p>Traben helps you monitor product prices across Blinkit, Swiggy, and Zepto in real-time.</p>
             
             <p style="text-align: center;">
               <a href="${inviteLink}" class="button">Accept Invitation</a>
@@ -73,8 +73,8 @@ export default async function handler(req, res) {
             </p>
           </div>
           <div class="footer">
-            <p>PricePulse - Smart Price Tracking</p>
-            <p>© ${new Date().getFullYear()} Goat Brand Labs</p>
+            <p>Traben - Track Prices. Win Margins.</p>
+            <p>© ${new Date().getFullYear()} Traben </p>
           </div>
         </div>
       </body>
