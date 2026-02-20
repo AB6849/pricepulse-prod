@@ -334,7 +334,7 @@ export default function AdminUsers() {
       {showInviteModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-reveal" onClick={() => setShowInviteModal(false)}></div>
-          <div className="glass-card w-full max-w-md p-10 relative animate-reveal-up overflow-hidden shadow-2xl shadow-black/50" onClick={e => e.stopPropagation()}>
+          <div className="glass-card bg-[#0a0a14] w-full max-w-md p-10 relative animate-reveal-up overflow-hidden shadow-2xl shadow-black/50" style={{ background: '#0d0d18', backgroundImage: 'none' }} onClick={e => e.stopPropagation()}>
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
 
             <div className="flex justify-between items-start mb-10">
