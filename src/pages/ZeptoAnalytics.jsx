@@ -631,16 +631,21 @@ export default function ZeptoAnalytics() {
                                                             {isSearching ? 'Matched Products' : 'Top SKUs in this Feeder'}
                                                         </p>
                                                         {(isSearching ? matchedItems : fac.top_products).map((prod, idx) => (
-                                                            <div key={idx} className={`flex items-center justify-between text-xs py-1.5 border-b border-white/5 last:border-0 ${isSearching ? 'bg-white/[0.02] -mx-2 px-2 rounded-md' : ''}`}>
-                                                                <span className={`${isSearching ? 'text-indigo-400 font-bold' : 'text-zinc-400'} truncate pr-4`}>{prod.item_name}</span>
-                                                                <div className="flex items-center gap-3">
+                                                            <div key={idx} className={`flex flex-col py-2 border-b border-white/5 last:border-0 ${isSearching ? 'bg-white/[0.02] -mx-2 px-2 rounded-md' : ''}`}>
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className={`${isSearching ? 'text-indigo-400 font-bold' : 'text-zinc-400'} truncate pr-4 text-xs`}>{prod.item_name}</span>
+                                                                    <span className="text-white font-bold whitespace-nowrap text-xs">{(prod.total_inv || 0).toLocaleString('en-IN')}</span>
+                                                                </div>
+                                                                <div className="flex items-center justify-between mt-1">
+                                                                    <span className="text-[10px] text-zinc-600 bg-white/5 px-1.5 py-0.5 rounded uppercase tracking-wider font-medium">
+                                                                        {prod.category || 'General'}
+                                                                    </span>
                                                                     {isSearching && (
                                                                         <div className="flex gap-1.5">
                                                                             <span className="text-[10px] text-zinc-600">B:{prod.backend_inv}</span>
                                                                             <span className="text-[10px] text-zinc-600">F:{prod.frontend_inv}</span>
                                                                         </div>
                                                                     )}
-                                                                    <span className="text-white font-bold whitespace-nowrap">{(prod.total_inv || 0).toLocaleString('en-IN')}</span>
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -744,7 +749,12 @@ export default function ZeptoAnalytics() {
                                                             }`} />
                                                         <div>
                                                             <p className="text-white text-sm font-bold leading-tight mb-1">{item.item_name}</p>
-                                                            <p className="text-zinc-500 text-xs">{item.facility_count} facilities active</p>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-zinc-500 text-xs">{item.facility_count} facilities active</p>
+                                                                <span className="text-[10px] text-zinc-600 bg-white/5 px-1.5 py-0.5 rounded uppercase tracking-wider font-medium">
+                                                                    {item.category || 'General'}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </td>

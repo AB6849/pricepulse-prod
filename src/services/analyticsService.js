@@ -86,6 +86,37 @@ function getColumn(row, ...possibleNames) {
 }
 
 /**
+ * Helper to deduplicate records before upsert to avoid "ON CONFLICT DO UPDATE command cannot affect row a second time"
+ */
+function deduplicateRecords(records, conflictColumns, aggregateFields = []) {
+    const keys = conflictColumns.split(',');
+    const map = new Map();
+
+    records.forEach(record => {
+        const key = keys.map(k => String(record[k] || '')).join('|');
+        if (map.has(key)) {
+            const existing = map.get(key);
+            // Aggregate numeric fields if specified
+            aggregateFields.forEach(field => {
+                if (record[field] !== undefined && record[field] !== null) {
+                    existing[field] = (existing[field] || 0) + (parseFloat(record[field]) || 0);
+                }
+            });
+            // Update other fields from latest record (overwrites)
+            Object.keys(record).forEach(field => {
+                if (!aggregateFields.includes(field)) {
+                    existing[field] = record[field];
+                }
+            });
+        } else {
+            map.set(key, { ...record });
+        }
+    });
+
+    return Array.from(map.values());
+}
+
+/**
  * Check for existing dates in the database for a given platform and brand
  * Returns an object with overlapping dates found
  */
@@ -260,12 +291,17 @@ export async function uploadSalesData(platform, brand, rows, userId) {
     const cityColumn = platform === 'zepto' ? 'city' : 'city_name';
     const conflictColumns = `brand,item_id,sale_date,${cityColumn}`;
 
+    // Deduplicate records to avoid "ON CONFLICT DO UPDATE command cannot affect row a second time"
+    const aggregateFields = ['qty_sold', 'sales_qty', 'gmv', 'orders', 'gross_selling_value', 'selling_price', 'mrp'];
+    const dedupedRecords = deduplicateRecords(records, conflictColumns, aggregateFields);
+
+    console.log(`  📝 Records after deduplication: ${dedupedRecords.length} (from ${records.length})`);
     console.log(`  📝 Using upsert with conflict on: ${conflictColumns}`);
 
     // Use upsert to handle duplicates - updates existing records, inserts new ones
     const { data, error } = await supabase
         .from(`${tablePrefix}_sales`)
-        .upsert(records, {
+        .upsert(dedupedRecords, {
             onConflict: conflictColumns,
             ignoreDuplicates: false  // false = update on conflict, true = ignore
         });
@@ -291,7 +327,7 @@ export async function uploadSalesData(platform, brand, rows, userId) {
 
             const { error: insertError } = await supabase
                 .from(`${tablePrefix}_sales`)
-                .insert(records);
+                .insert(dedupedRecords);
 
             if (insertError) {
                 console.error('  ❌ Supabase insert error:', insertError);
@@ -378,6 +414,7 @@ export async function uploadInventoryData(platform, brand, rows, userId) {
                 item_id: String(itemId),
                 item_name: itemName,
                 ean: getColumn(row, 'EAN'),
+                category: getColumn(row, 'SKU Category', 'category'),
                 sku_category: getColumn(row, 'SKU Category', 'category'),
                 sku_sub_cate: getColumn(row, 'SKU Sub Cate', 'sub_category'),
                 brand_name: getColumn(row, 'Brand Name'),
@@ -392,20 +429,19 @@ export async function uploadInventoryData(platform, brand, rows, userId) {
             itemId = getColumn(row, 'item_id', 'Item_id', 'Item ID', 'itemid');
             itemName = getColumn(row, 'item_name', 'Item_name', 'Item Name');
             facilityName = getColumn(row, 'backend_facility_name', 'Backend_facility_name', 'facility_name');
-            backendInv = parseInt(cleanNum(getColumn(row, 'backend_inv', 'Backend_inv', 'backend_inventory'))) || 0;
-            frontendInv = parseInt(cleanNum(getColumn(row, 'frontend_inv', 'Frontend_inv', 'frontend_inventory'))) || 0;
+            backendInv = parseInt(cleanNum(getColumn(row, 'backend_inv_qty', 'backend_inv', 'Backend_inv', 'backend_inventory'))) || 0;
+            frontendInv = parseInt(cleanNum(getColumn(row, 'frontend_inv_qty', 'frontend_inv', 'Frontend_inv', 'frontend_inventory'))) || 0;
             cityName = getColumn(row, 'city_name', 'City_name', 'City Name');
 
             return {
                 brand,
                 snapshot_date: snapshotDate,
                 facility_name: facilityName,
-                facility_code: parseInt(getColumn(row, 'backend_fac', 'Backend_fac', 'facility_code')) || null,
+                facility_code: parseInt(getColumn(row, 'backend_facility_id', 'backend_fac', 'Backend_fac', 'facility_code')) || null,
                 item_id: String(itemId),
                 item_name: itemName,
                 backend_inv: backendInv,
                 frontend_inv: frontendInv,
-                city: cityName,
                 uploaded_by: userId
             };
         }
@@ -431,12 +467,17 @@ export async function uploadInventoryData(platform, brand, rows, userId) {
     const locationColumn = platform === 'zepto' ? 'city' : 'facility_name';
     const conflictColumns = `brand,item_id,snapshot_date,${locationColumn}`;
 
+    // Deduplicate records to avoid "ON CONFLICT DO UPDATE command cannot affect row a second time"
+    const aggregateFields = ['backend_inv', 'frontend_inv', 'warehouse_qty', 'open_po_qty'];
+    const dedupedRecords = deduplicateRecords(records, conflictColumns, aggregateFields);
+
+    console.log(`  📝 Records after deduplication: ${dedupedRecords.length} (from ${records.length})`);
     console.log(`  📝 Using upsert with conflict on: ${conflictColumns}`);
 
     // Use upsert to handle duplicates - updates existing records, inserts new ones
     const { data, error } = await supabase
         .from(`${tablePrefix}_inventory`)
-        .upsert(records, {
+        .upsert(dedupedRecords, {
             onConflict: conflictColumns,
             ignoreDuplicates: false  // false = update on conflict, true = ignore
         });
@@ -462,7 +503,7 @@ export async function uploadInventoryData(platform, brand, rows, userId) {
 
             const { error: insertError } = await supabase
                 .from(`${tablePrefix}_inventory`)
-                .insert(records);
+                .insert(dedupedRecords);
 
             if (insertError) {
                 console.error('  ❌ Supabase insert error:', insertError);
@@ -767,6 +808,7 @@ export async function getInventoryByFacility(platform, brand) {
         if (!facilityMap[facility].items_map[itemName]) {
             facilityMap[facility].items_map[itemName] = {
                 item_name: itemName,
+                category: inv.category || inv.sku_category || 'General',
                 total_inv: 0,
                 backend_inv: 0,
                 frontend_inv: 0
@@ -841,6 +883,7 @@ export async function getNuclearInsights(platform, brand) {
                 total: 0, backend: 0, frontend: 0,
                 facilities: new Set(),
                 cityName: inv.city_name || inv.city || 'Generic',
+                category: inv.category || inv.sku_category || 'General',
                 open_po_qty: 0,
                 open_pos: new Set()
             };
@@ -898,6 +941,7 @@ export async function getNuclearInsights(platform, brand) {
             doh: Math.round(doh),
             forecasted_date: forecastedStockoutDate,
             facility_count: inv.facilities.size,
+            category: inv.category,
             opportunity_loss: Math.round(opportunityLoss),
             status: doh < 7 ? 'Critical' : (doh < 21 ? 'Watch' : 'Healthy'),
             // PO fields for Instamart
