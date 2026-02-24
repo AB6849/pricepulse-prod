@@ -8,6 +8,8 @@ import { isOutOfStock } from '../utils/csvParser';
 import { getBrandLogo } from '../utils/brandUtils';
 import Toast from '../components/Toast';
 import feather from 'feather-icons';
+import AIInsightCard from '../components/AIInsightCard';
+import { buildInsightsMetrics } from '../services/aiService';
 
 
 export default function Home() {
@@ -161,6 +163,20 @@ export default function Home() {
               <h2 className="text-xs font-black text-zinc-600 uppercase tracking-[0.4em]">Channel Insights</h2>
               {loadingStats && <div className="text-[10px] font-bold text-indigo-400 animate-pulse uppercase tracking-widest">Refreshing Analysis...</div>}
             </div>
+
+            {/* AI Global Insights */}
+            {!loadingStats && Object.keys(statsData).length > 0 && (
+              <div className="mb-12">
+                <AIInsightCard
+                  platform="global"
+                  brandName={currentBrand?.brand_name}
+                  metrics={{
+                    global: globalStats,
+                    platforms: statsData
+                  }}
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {platforms.map((platform) => {

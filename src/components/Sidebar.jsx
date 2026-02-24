@@ -72,6 +72,7 @@ export default function Sidebar({ activeView, setActiveView }) {
         { id: 'blinkit_analytics', label: 'Blinkit Analytics', logo: '/Blinkit-yellow-rounded.svg', path: '/blinkit/analytics' },
         { id: 'swiggy_analytics', label: 'Instamart Analytics', logo: '/instamart_logo.webp', path: '/swiggy/analytics' },
         { id: 'zepto_analytics', label: 'Zepto Analytics', logo: '/zeptologo.webp', path: '/zepto/analytics' },
+        { id: 'ai_assistant', label: 'AI Assistant', icon: 'sparkles', isAI: true },
     ];
 
 
@@ -197,16 +198,29 @@ export default function Sidebar({ activeView, setActiveView }) {
                                     return (
                                         <button
                                             key={item.id}
-                                            onClick={() => navigate(item.path)}
+                                            onClick={() => {
+                                                if (item.isAI) {
+                                                    window.dispatchEvent(new CustomEvent('open-ai-command-bar'));
+                                                } else {
+                                                    navigate(item.path);
+                                                }
+                                            }}
                                             className={`w-full group flex items-center gap-4 px-6 py-3.5 rounded-2xl transition-all duration-300 relative border
-                                                ${isActive ? 'bg-indigo-500/20 text-white border-indigo-500/30 shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/5 border-transparent'}`}
+                                                ${isActive ? 'bg-indigo-500/20 text-white border-indigo-500/30 shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/5 border-transparent'}
+                                                ${item.isAI ? 'hover:border-purple-500/30 bg-purple-500/5' : ''}`}
                                         >
                                             <div className={`p-1.5 rounded-lg transition-all duration-300
-                                                ${isActive ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-white/5 text-zinc-500 group-hover:text-white'}`}>
-                                                <img src={item.logo} alt="" className={`w-4 h-4 object-contain ${!isActive ? 'opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0' : ''}`} />
+                                                ${isActive ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-white/5 text-zinc-500 group-hover:text-white'}
+                                                ${item.isAI ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white opacity-100' : ''}`}>
+                                                {item.logo ? (
+                                                    <img src={item.logo} alt="" className={`w-4 h-4 object-contain ${!isActive ? 'opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0' : ''}`} />
+                                                ) : (
+                                                    <i data-feather={item.icon || 'star'} className="w-4 h-4"></i>
+                                                )}
                                             </div>
-                                            <span className={`text-[11px] font-bold tracking-tight uppercase ${isActive ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-300'}`}>
+                                            <span className={`text-[11px] font-bold tracking-tight uppercase ${isActive ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-300'}`}>
                                                 {item.label}
+                                                {item.isAI && <span className="ml-2 px-1 rounded bg-purple-500/20 text-[8px] text-purple-400">⌘K</span>}
                                             </span>
                                         </button>
                                     );

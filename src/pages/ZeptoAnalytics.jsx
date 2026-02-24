@@ -22,6 +22,9 @@ import {
     BarChart, Bar, PieChart, Pie, Cell
 } from 'recharts';
 import feather from 'feather-icons';
+import AIInsightCard from '../components/AIInsightCard';
+import ForecastWidget from '../components/ForecastWidget';
+import { buildInsightsMetrics } from '../services/aiService';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'];
 
@@ -258,6 +261,14 @@ export default function ZeptoAnalytics() {
                     <TrabenLoader message="Crunching your sales data..." />
                 ) : (
                     <div className="space-y-6">
+                        {/* AI Insights */}
+                        {dataLoaded && salesSummary.length > 0 && (
+                            <AIInsightCard
+                                platform="zepto"
+                                brandName={currentBrand?.brand_name}
+                                metrics={buildInsightsMetrics({ salesSummary, citySales, nuclearData, dailyTrend, stats })}
+                            />
+                        )}
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <StatCard
@@ -790,6 +801,14 @@ export default function ZeptoAnalytics() {
                                 </table>
                             </div>
                         </div>
+                        {/* AI Demand Forecast */}
+                        {nuclearData && nuclearData.items && nuclearData.items.length > 0 && (
+                            <ForecastWidget
+                                brandName={currentBrand?.brand_name}
+                                platform="zepto"
+                                nuclearItems={nuclearData.items}
+                            />
+                        )}
                     </div>
                 )
             )}

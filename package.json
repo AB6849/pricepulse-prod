@@ -4,13 +4,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "api": "node api-bridge.js",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.89.0",
     "cheerio": "^1.1.2",
+    "cors": "^2.8.6",
     "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "feather-icons": "^4.29.2",
     "fs": "^0.0.1-security",
     "node-fetch": "^3.3.2",
